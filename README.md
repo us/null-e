@@ -29,21 +29,21 @@ null-e is a fast, cross-platform disk cleanup CLI tool that helps developers rec
 
 ## What Can null-e Clean?
 
-| Category | Examples | Typical Size |
-|----------|----------|--------------|
-| **Project Artifacts** | `node_modules`, `target`, `.venv`, `build` | 10-100 GB |
-| **Global Caches** | npm, pip, cargo, go, maven, gradle | 5-50 GB |
-| **Xcode** | DerivedData, Simulators, Archives, Device Support | 20-100 GB |
-| **Docker** | Images, Containers, Volumes, Build Cache | 10-100 GB |
-| **Android** | AVD, Gradle, SDK Components | 5-30 GB |
-| **ML/AI** | Huggingface models, Ollama, PyTorch cache | 10-100 GB |
-| **IDE Caches** | JetBrains, VS Code, Cursor | 2-20 GB |
-| **Homebrew** | Downloads, Old versions | 2-20 GB |
-| **iOS Dependencies** | CocoaPods, Carthage, SPM | 1-10 GB |
-| **Electron Apps** | Slack, Discord, Spotify, Teams caches | 1-5 GB |
-| **Game Dev** | Unity, Unreal, Godot caches | 10-100 GB |
-| **Cloud CLI** | AWS, GCP, Azure, kubectl, Terraform | 1-5 GB |
-| **macOS System** | Orphaned containers, App remnants | 1-20 GB |
+| Category              | Examples                                          | Typical Size |
+| --------------------- | ------------------------------------------------- | ------------ |
+| **Project Artifacts** | `node_modules`, `target`, `.venv`, `build`        | 10-100 GB    |
+| **Global Caches**     | npm, pip, cargo, go, maven, gradle                | 5-50 GB      |
+| **Xcode**             | DerivedData, Simulators, Archives, Device Support | 20-100 GB    |
+| **Docker**            | Images, Containers, Volumes, Build Cache          | 10-100 GB    |
+| **Android**           | AVD, Gradle, SDK Components                       | 5-30 GB      |
+| **ML/AI**             | Huggingface models, Ollama, PyTorch cache         | 10-100 GB    |
+| **IDE Caches**        | JetBrains, VS Code, Cursor                        | 2-20 GB      |
+| **Homebrew**          | Downloads, Old versions                           | 2-20 GB      |
+| **iOS Dependencies**  | CocoaPods, Carthage, SPM                          | 1-10 GB      |
+| **Electron Apps**     | Slack, Discord, Spotify, Teams caches             | 1-5 GB       |
+| **Game Dev**          | Unity, Unreal, Godot caches                       | 10-100 GB    |
+| **Cloud CLI**         | AWS, GCP, Azure, kubectl, Terraform               | 1-5 GB       |
+| **macOS System**      | Orphaned containers, App remnants                 | 1-20 GB      |
 
 ## Features
 
@@ -66,6 +66,7 @@ cargo install null-e
 ### Pre-built Binaries
 
 Download from [GitHub Releases](https://github.com/us/null-e/releases):
+
 - **macOS**: `null-e-darwin-aarch64.tar.gz` (Apple Silicon) / `null-e-darwin-x86_64.tar.gz` (Intel)
 - **Linux**: `null-e-linux-x86_64.tar.gz` / `null-e-linux-aarch64.tar.gz`
 - **Windows**: `null-e-windows-x86_64.zip`
@@ -127,37 +128,37 @@ null-e duplicates ~/projects
 
 ### Core Commands
 
-| Command | Description |
-|---------|-------------|
-| `null-e` | Scan current directory for project artifacts |
-| `null-e scan` | Scan with detailed output |
-| `null-e clean` | Clean found artifacts (interactive) |
-| `null-e sweep` | Deep scan for ALL cleanable items |
-| `null-e caches` | Manage global developer caches |
+| Command         | Description                                  |
+| --------------- | -------------------------------------------- |
+| `null-e`        | Scan current directory for project artifacts |
+| `null-e scan`   | Scan with detailed output                    |
+| `null-e clean`  | Clean found artifacts (interactive)          |
+| `null-e sweep`  | Deep scan for ALL cleanable items            |
+| `null-e caches` | Manage global developer caches               |
 
 ### Specialized Cleaners
 
-| Command | Description |
-|---------|-------------|
-| `null-e xcode` | Clean Xcode artifacts |
-| `null-e android` | Clean Android development artifacts |
-| `null-e docker` | Clean Docker resources |
-| `null-e ml` | Clean ML/AI model caches |
-| `null-e ide` | Clean IDE caches |
-| `null-e homebrew` | Clean Homebrew caches |
-| `null-e ios-deps` | Clean iOS dependency caches |
-| `null-e electron` | Clean Electron app caches |
-| `null-e gamedev` | Clean game development caches |
-| `null-e cloud` | Clean cloud CLI caches |
-| `null-e macos` | Clean macOS system caches |
+| Command           | Description                         |
+| ----------------- | ----------------------------------- |
+| `null-e xcode`    | Clean Xcode artifacts               |
+| `null-e android`  | Clean Android development artifacts |
+| `null-e docker`   | Clean Docker resources              |
+| `null-e ml`       | Clean ML/AI model caches            |
+| `null-e ide`      | Clean IDE caches                    |
+| `null-e homebrew` | Clean Homebrew caches               |
+| `null-e ios-deps` | Clean iOS dependency caches         |
+| `null-e electron` | Clean Electron app caches           |
+| `null-e gamedev`  | Clean game development caches       |
+| `null-e cloud`    | Clean cloud CLI caches              |
+| `null-e macos`    | Clean macOS system caches           |
 
 ### Analysis Tools
 
-| Command | Description |
-|---------|-------------|
+| Command              | Description                           |
+| -------------------- | ------------------------------------- |
 | `null-e git-analyze` | Find large .git repos, suggest git gc |
-| `null-e stale` | Find projects not touched in months |
-| `null-e duplicates` | Find duplicate dependencies |
+| `null-e stale`       | Find projects not touched in months   |
+| `null-e duplicates`  | Find duplicate dependencies           |
 
 ## Usage Examples
 
@@ -340,28 +341,28 @@ null-e config --path
 
 ## Project Types Supported
 
-| Language/Framework | Marker Files | Cleanable Artifacts |
-|-------------------|--------------|---------------------|
-| **Node.js** | `package.json` | `node_modules`, `.next`, `.nuxt`, `dist`, `.cache` |
-| **Rust** | `Cargo.toml` | `target/` |
-| **Python** | `requirements.txt`, `pyproject.toml` | `.venv`, `__pycache__`, `.pytest_cache` |
-| **Go** | `go.mod` | `vendor/` |
-| **Java/Kotlin** | `pom.xml`, `build.gradle` | `target/`, `build/`, `.gradle/` |
-| **.NET** | `*.csproj` | `bin/`, `obj/` |
-| **Swift** | `Package.swift` | `.build/`, `.swiftpm/` |
-| **Ruby** | `Gemfile` | `vendor/bundle`, `.bundle` |
-| **PHP** | `composer.json` | `vendor/` |
+| Language/Framework | Marker Files                         | Cleanable Artifacts                                |
+| ------------------ | ------------------------------------ | -------------------------------------------------- |
+| **Node.js**        | `package.json`                       | `node_modules`, `.next`, `.nuxt`, `dist`, `.cache` |
+| **Rust**           | `Cargo.toml`                         | `target/`                                          |
+| **Python**         | `requirements.txt`, `pyproject.toml` | `.venv`, `__pycache__`, `.pytest_cache`            |
+| **Go**             | `go.mod`                             | `vendor/`                                          |
+| **Java/Kotlin**    | `pom.xml`, `build.gradle`            | `target/`, `build/`, `.gradle/`                    |
+| **.NET**           | `*.csproj`                           | `bin/`, `obj/`                                     |
+| **Swift**          | `Package.swift`                      | `.build/`, `.swiftpm/`                             |
+| **Ruby**           | `Gemfile`                            | `vendor/bundle`, `.bundle`                         |
+| **PHP**            | `composer.json`                      | `vendor/`                                          |
 
 ## Safety Levels
 
 Each cleanable item has a safety level:
 
-| Level | Symbol | Meaning |
-|-------|--------|---------|
-| **Safe** | `✓` | Safe to delete, will be regenerated |
-| **SafeWithCost** | `~` | Safe but may slow down next operation |
-| **Caution** | `!` | May lose some data, verify before deleting |
-| **Dangerous** | `⚠` | High risk, may break things |
+| Level            | Symbol | Meaning                                    |
+| ---------------- | ------ | ------------------------------------------ |
+| **Safe**         | `✓`    | Safe to delete, will be regenerated        |
+| **SafeWithCost** | `~`    | Safe but may slow down next operation      |
+| **Caution**      | `!`    | May lose some data, verify before deleting |
+| **Dangerous**    | `⚠`    | High risk, may break things                |
 
 ## Architecture
 
@@ -470,7 +471,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the WTFPL - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 

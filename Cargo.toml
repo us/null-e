@@ -1,9 +1,9 @@
 [package]
 name = "null-e"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["us"]
-description = "🤖 null-e: The friendly disk cleanup robot - Send your cruft to /dev/null"
+description = "Disk cleanup CLI for developers - clean node_modules, target, .venv, Docker, Xcode caches and 50+ cache types"
 license = "WTFPL"
 repository = "https://github.com/us/null-e"
 homepage = "https://github.com/us/null-e"

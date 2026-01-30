@@ -58,6 +58,10 @@ pub enum ScanMode {
     System,
     /// Scan logs
     Logs,
+    /// Scan language runtimes (nvm, pyenv, rbenv, rustup, sdkman, gvm)
+    Runtimes,
+    /// Analyze system binaries for duplicates and conflicts
+    BinaryAnalysis,
 }
 
 impl ScanMode {
@@ -80,6 +84,8 @@ impl ScanMode {
             ScanMode::MiscTools,
             ScanMode::TestBrowsers,
             ScanMode::Logs,
+            ScanMode::Runtimes,
+            ScanMode::BinaryAnalysis,
         ]
     }
 
@@ -102,6 +108,8 @@ impl ScanMode {
             ScanMode::TestBrowsers => "Test Browsers",
             ScanMode::System => "System",
             ScanMode::Logs => "Logs",
+            ScanMode::Runtimes => "Language Runtimes",
+            ScanMode::BinaryAnalysis => "Binary Analysis",
         }
     }
 
@@ -124,6 +132,8 @@ impl ScanMode {
             ScanMode::TestBrowsers => "Playwright, Cypress, Puppeteer",
             ScanMode::System => "Trash, Downloads, Temp files",
             ScanMode::Logs => "System logs, crash reports",
+            ScanMode::Runtimes => "nvm, pyenv, rbenv, rustup, sdkman, gvm",
+            ScanMode::BinaryAnalysis => "Duplicates, conflicts, unused managers",
         }
     }
 
@@ -146,6 +156,8 @@ impl ScanMode {
             ScanMode::TestBrowsers => "🧪",
             ScanMode::System => "🗑️",
             ScanMode::Logs => "📋",
+            ScanMode::Runtimes => "🔧",
+            ScanMode::BinaryAnalysis => "🔍",
         }
     }
 }
@@ -378,6 +390,8 @@ impl App {
                 ScanMode::TestBrowsers => Self::scan_test_browsers(tx),
                 ScanMode::System => Self::scan_system(tx),
                 ScanMode::Logs => Self::scan_logs(tx),
+                ScanMode::Runtimes => Self::scan_runtimes(tx),
+                ScanMode::BinaryAnalysis => Self::scan_binaries(tx),
             }
         });
     }
@@ -700,7 +714,52 @@ impl App {
             }
         }
 
-        // 15. Scan projects
+        // 15. Scan Language Runtimes
+        let _ = tx.send(ScanMessage::Progress {
+            dirs_scanned: 0,
+            message: "Scanning language runtimes...".to_string(),
+        });
+        if let Some(cleaner) = crate::cleaners::runtimes::RuntimesCleaner::new() {
+            if let Ok(items) = cleaner.detect() {
+                for item in items {
+                    all_cleaners.push(CleanerEntry {
+                        name: item.name,
+                        path: item.path,
+                        size: item.size,
+                        icon: item.icon.to_string(),
+                        category: item.category,
+                        selected: false,
+                        visible: true,
+                        clean_command: item.clean_command.clone(),
+                    });
+                }
+            }
+        }
+
+        // 16. Binary Analysis (duplicates, unused managers)
+        let _ = tx.send(ScanMessage::Progress {
+            dirs_scanned: 0,
+            message: "Analyzing system binaries...".to_string(),
+        });
+        if let Some(analyzer) = crate::cleaners::binaries::BinaryAnalyzer::new() {
+            if let Ok(result) = analyzer.analyze() {
+                let items = analyzer.to_cleanable_items(&result);
+                for item in items {
+                    all_cleaners.push(CleanerEntry {
+                        name: item.name,
+                        path: item.path,
+                        size: item.size,
+                        icon: item.icon.to_string(),
+                        category: item.category,
+                        selected: false,
+                        visible: true,
+                        clean_command: item.clean_command.clone(),
+                    });
+                }
+            }
+        }
+
+        // 17. Scan projects
         let _ = tx.send(ScanMessage::Progress {
             dirs_scanned: 0,
             message: "Scanning development projects...".to_string(),
@@ -1163,6 +1222,79 @@ impl App {
 
         if let Some(cleaner) = crate::cleaners::logs::LogsCleaner::new() {
             if let Ok(items) = cleaner.detect() {
+                let entries: Vec<CleanerEntry> = items
+                    .into_iter()
+                    .map(|item| CleanerEntry {
+                        name: item.name,
+                        path: item.path,
+                        size: item.size,
+                        icon: item.icon.to_string(),
+                        category: item.category,
+                        selected: false,
+                        visible: true,
+                        clean_command: item.clean_command,
+                    })
+                    .collect();
+                let _ = tx.send(ScanMessage::CompleteCleaners(entries));
+                return;
+            }
+        }
+        let _ = tx.send(ScanMessage::CompleteCleaners(vec![]));
+    }
+
+    /// Scan Language Runtimes (nvm, pyenv, rbenv, rustup, sdkman, gvm)
+    fn scan_runtimes(tx: Sender<ScanMessage>) {
+        let _ = tx.send(ScanMessage::Progress {
+            dirs_scanned: 0,
+            message: "Scanning language runtimes...".to_string(),
+        });
+
+        if let Some(cleaner) = crate::cleaners::runtimes::RuntimesCleaner::new() {
+            if let Ok(items) = cleaner.detect() {
+                let entries: Vec<CleanerEntry> = items
+                    .into_iter()
+                    .map(|item| CleanerEntry {
+                        name: item.name,
+                        path: item.path,
+                        size: item.size,
+                        icon: item.icon.to_string(),
+                        category: item.category,
+                        selected: false,
+                        visible: true,
+                        clean_command: item.clean_command,
+                    })
+                    .collect();
+                let _ = tx.send(ScanMessage::CompleteCleaners(entries));
+                return;
+            }
+        }
+        let _ = tx.send(ScanMessage::CompleteCleaners(vec![]));
+    }
+
+    /// Scan system binaries for duplicates and conflicts
+    fn scan_binaries(tx: Sender<ScanMessage>) {
+        let _ = tx.send(ScanMessage::Progress {
+            dirs_scanned: 0,
+            message: "Analyzing system binaries...".to_string(),
+        });
+
+        if let Some(analyzer) = crate::cleaners::binaries::BinaryAnalyzer::new() {
+            let _ = tx.send(ScanMessage::Progress {
+                dirs_scanned: 0,
+                message: "Discovering binaries via which -a...".to_string(),
+            });
+
+            if let Ok(result) = analyzer.analyze() {
+                let _ = tx.send(ScanMessage::Progress {
+                    dirs_scanned: result.binaries.len(),
+                    message: format!(
+                        "Found {} binaries, {} duplicates...",
+                        result.binaries.len(),
+                        result.duplicates.len()
+                    ),
+                });
+
+                let items = analyzer.to_cleanable_items(&result);
                 let entries: Vec<CleanerEntry> = items
                     .into_iter()
                     .map(|item| CleanerEntry {

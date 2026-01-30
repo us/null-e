@@ -16,6 +16,7 @@
 //! - Misc tools (Vagrant, Git LFS, Go, Ruby, NuGet, Gradle, Maven)
 //! - Testing browsers (Playwright, Cypress, Puppeteer, Selenium)
 //! - System cleanup (Trash, Downloads, Temp, Big Files)
+//! - Language Runtimes (nvm, pyenv, rbenv, rustup, sdkman, gvm)
 
 pub mod xcode;
 pub mod android;
@@ -32,6 +33,8 @@ pub mod macos;
 pub mod misc;
 pub mod browsers_test;
 pub mod system;
+pub mod runtimes;
+pub mod binaries;
 
 use crate::error::Result;
 use serde::{Deserialize, Serialize};
