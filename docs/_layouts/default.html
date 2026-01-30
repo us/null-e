@@ -5,461 +5,267 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ page.title | default: site.title }}</title>
   {% seo %}
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}">
   <style>
-    :root {
-      --primary: #2563eb;
-      --primary-dark: #1d4ed8;
-      --secondary: #059669;
-      --bg: #ffffff;
-      --bg-alt: #f8fafc;
-      --text: #1e293b;
-      --text-muted: #64748b;
-      --border: #e2e8f0;
-      --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
-      --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
-    }
-    
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      line-height: 1.6;
-      color: var(--text);
-      background: var(--bg);
-    }
-    
-    /* Hero Section */
-    .hero {
-      background: linear-gradient(135deg, #1e3a8a 0%, #059669 100%);
-      color: white;
-      padding: 4rem 1rem;
-      text-align: center;
-    }
-    
-    .hero-content {
-      max-width: 800px;
+    /* Minimal Theme Customizations */
+    .wrapper {
+      max-width: 960px;
       margin: 0 auto;
+      padding: 0 20px;
     }
     
+    header {
+      width: 270px;
+      float: left;
+      position: fixed;
+      -webkit-font-smoothing: subpixel-antialiased;
+      padding-top: 40px;
+    }
+    
+    section {
+      width: 600px;
+      float: right;
+      padding-bottom: 50px;
+      padding-top: 40px;
+    }
+    
+    footer {
+      width: 270px;
+      float: left;
+      position: fixed;
+      bottom: 50px;
+      -webkit-font-smoothing: subpixel-antialiased;
+    }
+    
+    /* Robot mascot styling */
     .robot-mascot {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.9rem;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
       line-height: 1.4;
-      margin-bottom: 1.5rem;
-      opacity: 0.9;
       white-space: pre;
+      margin: 20px 0;
+      color: #666;
     }
     
-    .hero h1 {
-      font-size: 2.5rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-    }
-    
-    .hero p {
-      font-size: 1.25rem;
-      opacity: 0.9;
-      margin-bottom: 2rem;
-    }
-    
-    .badges {
-      margin-bottom: 1.5rem;
-    }
-    
-    .badges img {
-      margin: 0 0.25rem;
-    }
-    
-    .cta-buttons {
-      display: flex;
-      gap: 1rem;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-    
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.75rem 1.5rem;
-      border-radius: 8px;
-      font-weight: 600;
-      text-decoration: none;
-      transition: all 0.2s;
-    }
-    
-    .btn-primary {
-      background: white;
-      color: #1e3a8a;
-    }
-    
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-lg);
-    }
-    
-    .btn-secondary {
-      background: rgba(255,255,255,0.2);
-      color: white;
-      border: 2px solid rgba(255,255,255,0.3);
-    }
-    
-    .btn-secondary:hover {
-      background: rgba(255,255,255,0.3);
-    }
-    
-    /* Main Content */
-    .main-content {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 3rem 1rem;
-    }
-    
-    .section {
-      margin-bottom: 3rem;
-    }
-    
-    h2 {
-      font-size: 1.875rem;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 3px solid var(--primary);
+    /* View on GitHub button */
+    .github-button {
       display: inline-block;
-    }
-    
-    h3 {
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--primary-dark);
-      margin: 1.5rem 0 0.75rem;
-    }
-    
-    p {
-      margin-bottom: 1rem;
-      color: var(--text);
-    }
-    
-    ul, ol {
-      margin: 1rem 0;
-      padding-left: 1.5rem;
-    }
-    
-    li {
-      margin: 0.5rem 0;
-    }
-    
-    strong {
-      font-weight: 600;
-      color: var(--primary-dark);
-    }
-    
-    /* Code Blocks */
-    pre {
-      background: #1e293b;
-      color: #e2e8f0;
-      padding: 1.25rem;
-      border-radius: 8px;
-      overflow-x: auto;
-      margin: 1rem 0;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.875rem;
-      line-height: 1.6;
-    }
-    
-    code {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.875em;
-      background: var(--bg-alt);
-      padding: 0.2rem 0.4rem;
+      padding: 10px 20px;
+      background: #267CB9;
+      color: white;
+      text-decoration: none;
       border-radius: 4px;
-      color: var(--primary-dark);
+      font-weight: 500;
+      margin-top: 15px;
     }
     
-    pre code {
-      background: none;
-      padding: 0;
-      color: inherit;
+    .github-button:hover {
+      background: #069;
     }
     
-    /* Tables */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 1.5rem 0;
-      background: white;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: var(--shadow);
-    }
-    
-    th {
-      background: var(--bg-alt);
-      font-weight: 600;
-      text-align: left;
-      padding: 0.875rem;
-      border-bottom: 2px solid var(--border);
-    }
-    
-    td {
-      padding: 0.875rem;
-      border-bottom: 1px solid var(--border);
-    }
-    
-    tr:last-child td {
-      border-bottom: none;
-    }
-    
-    tr:hover {
-      background: var(--bg-alt);
-    }
-    
-    /* Blockquotes */
-    blockquote {
-      border-left: 4px solid var(--secondary);
-      background: var(--bg-alt);
-      padding: 1rem 1.5rem;
-      margin: 1.5rem 0;
-      border-radius: 0 8px 8px 0;
-      font-style: italic;
-    }
-    
-    /* Feature Cards */
-    .features-grid {
+    /* Feature cards */
+    .features {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1.5rem;
-      margin: 2rem 0;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin: 20px 0;
     }
     
-    .feature-card {
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1.5rem;
-      transition: all 0.2s;
+    .feature {
+      background: #f8f8f8;
+      padding: 15px;
+      border-radius: 4px;
+      border-left: 3px solid #267CB9;
     }
     
-    .feature-card:hover {
-      transform: translateY(-4px);
-      box-shadow: var(--shadow-lg);
-      border-color: var(--primary);
+    .feature h4 {
+      margin: 0 0 8px 0;
+      color: #333;
     }
     
-    .feature-icon {
-      font-size: 2rem;
-      margin-bottom: 0.5rem;
-    }
-    
-    .feature-card h3 {
-      margin: 0 0 0.5rem;
-      font-size: 1.125rem;
-    }
-    
-    .feature-card p {
+    .feature p {
       margin: 0;
-      font-size: 0.875rem;
-      color: var(--text-muted);
+      font-size: 14px;
+      color: #666;
     }
     
-    /* Blog Posts List */
+    /* Blog list */
     .blog-list {
       list-style: none;
       padding: 0;
     }
     
     .blog-item {
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      margin: 1rem 0;
-      padding: 1.25rem;
-      transition: all 0.2s;
+      padding: 15px 0;
+      border-bottom: 1px solid #e5e5e5;
     }
     
-    .blog-item:hover {
-      box-shadow: var(--shadow);
-      border-color: var(--primary);
+    .blog-item:last-child {
+      border-bottom: none;
     }
     
     .blog-item a {
-      color: var(--text);
-      text-decoration: none;
       font-weight: 600;
-      font-size: 1.125rem;
+      text-decoration: none;
+      color: #267CB9;
     }
     
     .blog-item a:hover {
-      color: var(--primary);
+      color: #069;
     }
     
     .blog-meta {
-      color: var(--text-muted);
-      font-size: 0.875rem;
-      margin-top: 0.5rem;
+      font-size: 13px;
+      color: #999;
+      margin-top: 5px;
     }
     
     .tag {
       display: inline-block;
-      background: var(--bg-alt);
-      color: var(--primary-dark);
-      padding: 0.25rem 0.75rem;
-      border-radius: 9999px;
-      font-size: 0.75rem;
-      font-weight: 500;
-      margin-right: 0.5rem;
+      background: #e8f4f8;
+      color: #267CB9;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      margin-right: 5px;
     }
     
-    /* Footer */
-    .site-footer {
-      background: var(--bg-alt);
-      border-top: 1px solid var(--border);
-      padding: 3rem 1rem;
-      text-align: center;
-      margin-top: 4rem;
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
     }
     
-    .footer-content {
-      max-width: 600px;
-      margin: 0 auto;
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #e5e5e5;
     }
     
-    .footer-links {
-      display: flex;
-      justify-content: center;
-      gap: 1.5rem;
-      margin-bottom: 1.5rem;
+    th {
+      background: #f5f5f5;
+      font-weight: 600;
     }
     
-    .footer-links a {
-      color: var(--text-muted);
-      text-decoration: none;
-      font-weight: 500;
+    /* Code blocks */
+    pre {
+      background: #f8f8f8;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      border: 1px solid #e5e5e5;
     }
     
-    .footer-links a:hover {
-      color: var(--primary);
-    }
-    
-    .footer-mascot {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.875rem;
-      color: var(--text-muted);
-      margin-top: 1rem;
-      line-height: 1.4;
-    }
-    
-    /* Post Header (for blog posts) */
-    .post-header {
-      background: linear-gradient(135deg, #1e3a8a 0%, #059669 100%);
-      color: white;
-      padding: 3rem 1rem;
-      text-align: center;
-    }
-    
-    .post-header h1 {
-      font-size: 2rem;
-      font-weight: 700;
-      max-width: 800px;
-      margin: 0 auto 1rem;
-    }
-    
-    .post-header p {
-      opacity: 0.9;
-      max-width: 600px;
-      margin: 0 auto;
-    }
-    
-    .post-meta-header {
-      margin-top: 1.5rem;
-      font-size: 0.875rem;
-      opacity: 0.8;
-    }
-    
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      color: white;
-      text-decoration: none;
-      margin-bottom: 1rem;
-      font-weight: 500;
-    }
-    
-    .back-link:hover {
-      text-decoration: underline;
+    code {
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
     }
     
     /* Responsive */
-    @media (max-width: 768px) {
-      .hero h1 { font-size: 1.875rem; }
-      .hero p { font-size: 1rem; }
-      .cta-buttons { flex-direction: column; align-items: center; }
-      .btn { width: 100%; max-width: 300px; justify-content: center; }
-      h2 { font-size: 1.5rem; }
-      .features-grid { grid-template-columns: 1fr; }
+    @media print, screen and (max-width: 960px) {
+      header, section, footer {
+        float: none;
+        position: static;
+        width: auto;
+      }
+      
+      header {
+        padding-right: 320px;
+      }
+      
+      section {
+        border: 1px solid #e5e5e5;
+        border-width: 1px 0;
+        padding: 20px 0;
+        margin: 0 0 20px;
+      }
+      
+      header a small {
+        display: inline;
+      }
+      
+      header ul {
+        position: absolute;
+        right: 50px;
+        top: 52px;
+      }
+      
+      .features {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    @media print, screen and (max-width: 720px) {
+      body {
+        word-wrap: break-word;
+      }
+      
+      header {
+        padding: 0;
+      }
+      
+      header ul, header p.view {
+        position: static;
+      }
+      
+      pre, code {
+        word-wrap: normal;
+      }
+    }
+    
+    @media print, screen and (max-width: 480px) {
+      body {
+        padding: 15px;
+      }
+      
+      header ul {
+        width: 99%;
+      }
+      
+      header li, header ul li + li + li {
+        width: 33%;
+      }
+    }
+    
+    @media print {
+      body {
+        padding: 0.4in;
+        font-size: 12pt;
+        color: #444;
+      }
     }
   </style>
 </head>
 <body>
-  {% if page.layout == 'post' %}
-  <header class="post-header">
-    <a href="{{ site.baseurl }}/" class="back-link">← Back to Home</a>
-    <h1>{{ page.title }}</h1>
-    {% if page.description %}
-    <p>{{ page.description }}</p>
-    {% endif %}
-    <div class="post-meta-header">
-      {{ page.date | date: "%B %d, %Y" }}
-      {% if page.author %}by {{ page.author }}{% endif %}
-    </div>
-  </header>
-  {% else %}
-  <header class="hero">
-    <div class="hero-content">
+  <div class="wrapper">
+    <header>
+      <h1>{{ site.title | default: "null-e" }}</h1>
+      <p>{{ site.description | default: "The friendly disk cleanup robot for developers" }}</p>
+      
       <pre class="robot-mascot">     .---.
-    |o   o|    null-e
-    |  ^  |    ═══════════════════════════════════
-    | === |    The friendly disk cleanup robot
-    `-----'    Send your cruft to /dev/null!
-     /| |\</pre>
-      <h1>null-e - Disk Cleanup Tool for Developers</h1>
-      <p>Clean node_modules, target, .venv, Docker images, Xcode caches and 50+ cache types. Reclaim 100+ GB of disk space.</p>
-      <div class="badges">
-        <img src="https://img.shields.io/crates/v/null-e.svg" alt="Crates.io">
-        <img src="https://img.shields.io/crates/d/null-e.svg" alt="Downloads">
-      </div>
-      <div class="cta-buttons">
-        <a href="https://github.com/us/null-e" class="btn btn-secondary">View on GitHub</a>
-        <a href="https://crates.io/crates/null-e" class="btn btn-primary">Install from crates.io</a>
-      </div>
-    </div>
-  </header>
-  {% endif %}
-
-  <main class="main-content">
-    {{ content }}
-  </main>
-
-  <footer class="site-footer">
-    <div class="footer-content">
-      <p><strong>null-e</strong> — The friendly disk cleanup robot</p>
-      <div class="footer-links">
-        <a href="https://github.com/us/null-e">GitHub</a>
-        <a href="https://crates.io/crates/null-e">crates.io</a>
-        <a href="{{ site.baseurl }}/">Documentation</a>
-      </div>
-      <pre class="footer-mascot">     .---.
     |o   o|
-    |  ^  |  Send your cruft to /dev/null!
+    |  ^  |
     | === |
     `-----'
      /| |\</pre>
-    </div>
-  </footer>
+      
+      <p>
+        <a href="https://github.com/us/null-e" class="github-button">View on GitHub</a>
+      </p>
+      
+      <p style="margin-top: 20px;">
+        <img src="https://img.shields.io/crates/v/null-e.svg" alt="Crates.io" style="max-width: 100%;">
+      </p>
+    </header>
+    
+    <section>
+      {{ content }}
+    </section>
+    
+    <footer>
+      <p><small>Made with care by <a href="https://github.com/us">us</a></small></p>
+    </footer>
+  </div>
 </body>
 </html>

@@ -2,22 +2,17 @@
 layout: default
 ---
 
-<article class="post-content">
-  {{ content }}
-</article>
+<p><a href="{{ site.baseurl }}/" style="color: #267CB9;">← Back to Home</a></p>
 
-<div class="section" style="margin-top: 3rem; padding-top: 2rem; border-top: 2px solid var(--border);">
-  <h3>Continue Reading</h3>
-  <ul class="blog-list">
-    {% for post in site.posts limit:5 %}
-    {% if post.url != page.url %}
-    <li class="blog-item">
-      <a href="{{ post.url | relative_url }}">{{ post.title }}</a>
-      <div class="blog-meta">
-        {{ post.date | date: "%B %d, %Y" }}
-      </div>
-    </li>
-    {% endif %}
-    {% endfor %}
-  </ul>
+{{ content }}
+
+<h3 style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e5e5;">Continue Reading</h3>
+
+{% for post in site.posts limit:5 %}
+{% if post.url != page.url %}
+<div class="blog-item">
+  <a href="{{ post.url | relative_url }}">{{ post.title }}</a>
+  <div class="blog-meta">{{ post.date | date: "%B %d, %Y" }}</div>
 </div>
+{% endif %}
+{% endfor %}

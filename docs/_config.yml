@@ -2,7 +2,7 @@ title: null-e
 description: The friendly disk cleanup robot for developers. Clean node_modules, target, .venv, Docker, Xcode and 50+ cache types.
 url: https://us.github.io
 baseurl: /null-e
-theme: jekyll-theme-cayman
+theme: jekyll-theme-minimal
 
 # SEO
 author: us
