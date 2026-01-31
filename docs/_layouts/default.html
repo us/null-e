@@ -38,15 +38,17 @@
       -webkit-font-smoothing: subpixel-antialiased;
     }
     
-    /* Robot mascot styling - ultra compact */
+    /* Robot mascot styling - strict width limit */
     .robot-mascot {
       font-family: 'Courier New', monospace;
-      font-size: 7px;
-      line-height: 1.1;
+      font-size: 8px;
+      line-height: 1.2;
       white-space: pre;
       margin: 10px 0;
       color: #666;
-      overflow: hidden;
+      max-width: 250px;
+      overflow-x: hidden;
+      box-sizing: border-box;
     }
     
     /* View on GitHub button */
