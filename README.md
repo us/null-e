@@ -1,5 +1,3 @@
-<div align="center">
-
 ```
      .---.
     |o   o|    null-e
@@ -8,6 +6,8 @@
     `-----'    Send your cruft to /dev/null!
      /| |\
 ```
+
+<div align="center">
 
 # null-e
 
