@@ -1,0 +1,20 @@
+#!/bin/sh
+# Pre-commit hook — mirrors CI checks (ci.yml)
+# Install: git config core.hooksPath .githooks
+#    or:   make hooks
+
+set -e
+
+echo "Checking format..."
+cargo fmt --all -- --check
+
+echo "Running linter..."
+cargo clippy -- -D warnings
+
+echo "Building..."
+cargo build
+
+echo "Running tests..."
+cargo test
+
+echo "All checks passed."

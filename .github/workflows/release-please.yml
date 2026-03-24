@@ -1,0 +1,83 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.major }}.${{ steps.release.outputs.minor }}.${{ steps.release.outputs.patch }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  update-readme:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Update README What's New from CHANGELOG
+        env:
+          VERSION: ${{ needs.release-please.outputs.version }}
+        run: |
+          python3 << 'PYEOF'
+          import os, re
+
+          version = os.environ["VERSION"]
+
+          with open("CHANGELOG.md") as f:
+              changelog = f.read()
+
+          match = re.search(r'(## \[' + re.escape(version) + r'\].*?\n)(.*?)(?=\n## \[|\Z)', changelog, re.DOTALL)
+          if not match:
+              print(f"No changelog entry found for {version}, skipping")
+              exit(0)
+
+          body = match.group(2).strip()
+
+          with open("README.md") as f:
+              readme = f.read()
+
+          whats_new_match = re.search(r'## What\'s New\n', readme)
+          if not whats_new_match:
+              print("No What's New section found in README, skipping")
+              exit(0)
+
+          start = whats_new_match.start()
+          next_heading = re.search(r'\n## (?!What\'s New)', readme[start + 1:])
+          end = start + 1 + next_heading.start() if next_heading else len(readme)
+
+          new_section = f"## What's New\n\n### v{version}\n\n{body}\n\nSee [CHANGELOG.md](CHANGELOG.md) for the full release history.\n\n"
+          new_readme = readme[:start] + new_section + readme[end:]
+
+          with open("README.md", "w") as f:
+              f.write(new_readme)
+
+          print(f"Updated README What's New to v{version}")
+          PYEOF
+
+      - name: Commit and push README changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --staged --quiet && echo "No changes to commit" && exit 0
+          git commit -m "docs: update README What's New for ${{ needs.release-please.outputs.tag_name }} [skip ci]"
+          git push
