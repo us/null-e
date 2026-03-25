@@ -1,1 +1,37 @@
 # Changelog
+
+## [0.3.0](https://github.com/us/null-e/compare/v0.2.0...v0.3.0) (2026-03-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* config directory changed from ~/.config/devsweep to ~/.config/null-e
+
+### Features
+
+* add null-e text next to robot mascot ([1846f3a](https://github.com/us/null-e/commit/1846f3a110755a6a01f09d7e543342c0207a05a7))
+* added multi-platform distribution support ([dfeb712](https://github.com/us/null-e/commit/dfeb7121b009cfc06600f6345f4b4531055ddecc))
+* added tui ([7feb994](https://github.com/us/null-e/commit/7feb9942ec6c05bfcd1ab9f8130d940200140341))
+* apply Minimal Jekyll theme ([dbc0ee3](https://github.com/us/null-e/commit/dbc0ee3741624022b8dc79898e4ba5271e384c0c))
+* apply project template (release-please, Makefile, pre-commit, README format) ([9e15641](https://github.com/us/null-e/commit/9e1564165962cb321cd1b5769daeed1c3059940b))
+* complete project review, fix 15 bugs, improve detection coverage ([6ef1bf6](https://github.com/us/null-e/commit/6ef1bf6c3cde9660969f41fb64c0fbff1cdea67f))
+* major TUI improvements and new cleaners ([1754edc](https://github.com/us/null-e/commit/1754edc2aaf83b3ffe9756e74a3753df34c13556))
+* modernize Jekyll site with professional design ([02933ce](https://github.com/us/null-e/commit/02933ce92ba772c2981c3450912daba775b51d0e))
+
+
+### Bug Fixes
+
+* add Jekyll layout templates for proper rendering ([bbb4bbb](https://github.com/us/null-e/commit/bbb4bbbca6d86f47719732fe3ff13800ab11cd08))
+* gate platform-specific imports with cfg attributes ([d05bee6](https://github.com/us/null-e/commit/d05bee6c65ef918180cb73a0f26b99c7278a2c1e))
+* hardcode footer bg, increase text opacity, add article padding ([8abeb6c](https://github.com/us/null-e/commit/8abeb6cd575cbec36650c8cb4e4a12605ac0436b))
+* keep CleanableItem and Result imports available for non-macOS stub ([1c5ec43](https://github.com/us/null-e/commit/1c5ec4329f56e77bf1618217041094743ce3f870))
+* limit ASCII art width to prevent overflow ([60e02e7](https://github.com/us/null-e/commit/60e02e7720a209ca1c1379d06cb36b56b925f379))
+* move ASCII art outside center div to prevent alignment issues ([6c4db7d](https://github.com/us/null-e/commit/6c4db7db9bc1006cae28cb651fc52e8213d9bdc4))
+* prevent markdown headings inside code blocks ([69a1d91](https://github.com/us/null-e/commit/69a1d9174efe018911c3766fbab91a86a09a53be))
+* reduce keywords to 5 for crates.io ([664ebbd](https://github.com/us/null-e/commit/664ebbd0d413fd116eece77bdb98e6e1433fb54f))
+* replace ASCII art with text to prevent overflow ([9be3dd2](https://github.com/us/null-e/commit/9be3dd28dee2636f7abf58bcbc37b80f532ed5db))
+* restore ASCII art with ultra-small font size (7px) to prevent overflow ([16166df](https://github.com/us/null-e/commit/16166df9c3c10199b161555d8c77565ab5530b78))
+* sidebar overflow and blog section improvements ([909cee9](https://github.com/us/null-e/commit/909cee9555d59828e6c5e8c3eca4d423d5006c05))
+* update footer to TMLS design with brand + meta layout ([974445c](https://github.com/us/null-e/commit/974445c42ce3ab413cdbd34d9e335cdaa170e501))
+
+## Changelog
