@@ -5,9 +5,9 @@
 //! - Stale project detection
 //! - Duplicate dependency detection
 
+pub mod duplicates;
 pub mod git;
 pub mod stale;
-pub mod duplicates;
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

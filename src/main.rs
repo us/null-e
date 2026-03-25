@@ -4,8 +4,8 @@
 
 use clap::{Parser, Subcommand, ValueEnum};
 use colored::Colorize;
-use null_e::prelude::*;
 use indicatif::{ProgressBar, ProgressStyle};
+use null_e::prelude::*;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
@@ -317,12 +317,12 @@ fn main() {
         Some(Commands::Clean { only, exclude }) => cmd_clean(&cli, only, exclude),
         Some(Commands::Config { init, path }) => cmd_config(*init, *path),
         Some(Commands::List) => cmd_list(),
-        Some(Commands::Caches { clean, clean_all, official }) => {
-            cmd_caches(&cli, *clean, *clean_all, *official)
-        }
-        Some(Commands::Sweep { clean, category }) => {
-            cmd_sweep(&cli, *clean, category.as_deref())
-        }
+        Some(Commands::Caches {
+            clean,
+            clean_all,
+            official,
+        }) => cmd_caches(&cli, *clean, *clean_all, *official),
+        Some(Commands::Sweep { clean, category }) => cmd_sweep(&cli, *clean, category.as_deref()),
         Some(Commands::Xcode { clean }) => cmd_xcode(&cli, *clean),
         Some(Commands::Android { clean }) => cmd_android(&cli, *clean),
         Some(Commands::Docker { clean, volumes }) => cmd_docker(&cli, *clean, *volumes),
@@ -398,7 +398,11 @@ fn cmd_scan(cli: &Cli, detailed: bool) -> Result<()> {
                 .collect();
 
             if !projects.is_empty() {
-                println!("{} {}", "⚡".yellow(), "Using cached results (use --no-cache to rescan)".dimmed());
+                println!(
+                    "{} {}",
+                    "⚡".yellow(),
+                    "Using cached results (use --no-cache to rescan)".dimmed()
+                );
                 println!();
 
                 // Apply min_size filter
@@ -414,10 +418,19 @@ fn cmd_scan(cli: &Cli, detailed: bool) -> Result<()> {
                 projects.sort_by(|a, b| b.cleanable_size.cmp(&a.cleanable_size));
 
                 // Create a minimal config for display
-                let mut cached_config = ScanConfig::default();
-                cached_config.roots = paths.clone();
+                let cached_config = ScanConfig {
+                    roots: paths.clone(),
+                    ..Default::default()
+                };
 
-                return display_scan_results(cli, &cached_config, projects, 0, Duration::from_millis(1), detailed);
+                return display_scan_results(
+                    cli,
+                    &cached_config,
+                    projects,
+                    0,
+                    Duration::from_millis(1),
+                    detailed,
+                );
             }
         }
     }
@@ -427,8 +440,10 @@ fn cmd_scan(cli: &Cli, detailed: bool) -> Result<()> {
     let scanner = ParallelScanner::new(registry);
 
     // Build config with smart defaults
-    let mut config = ScanConfig::default();
-    config.roots = paths.clone();
+    let mut config = ScanConfig {
+        roots: paths.clone(),
+        ..Default::default()
+    };
 
     if let Some(depth) = cli.max_depth {
         config.max_depth = Some(depth);
@@ -436,7 +451,12 @@ fn cmd_scan(cli: &Cli, detailed: bool) -> Result<()> {
 
     // Default min_size to 1MB unless specified or verbose mode
     if let Some(ref size_str) = cli.min_size {
-        config.min_size = parse_size(size_str);
+        config.min_size = Some(parse_size(size_str).ok_or_else(|| {
+            NullEError::Config(format!(
+                "Invalid size format: '{}'. Use formats like 1MB, 500KB, 2GB",
+                size_str
+            ))
+        })?);
     } else if !cli.verbose && !cli.all {
         config.min_size = Some(1_000_000); // 1MB default
     }
@@ -458,24 +478,22 @@ fn cmd_scan(cli: &Cli, detailed: bool) -> Result<()> {
     let pb_clone = pb.clone();
 
     // Spawn thread to update progress bar
-    let progress_thread = thread::spawn(move || {
-        loop {
-            let snapshot = progress_clone.snapshot();
-            if snapshot.is_complete {
-                break;
-            }
-
-            let size_str = format_size(snapshot.total_size_found);
-            let msg = format!(
-                "Scanning... {} dirs | {} projects | {} found",
-                snapshot.directories_scanned,
-                snapshot.projects_found,
-                size_str.yellow()
-            );
-            pb_clone.set_message(msg);
-
-            thread::sleep(Duration::from_millis(50));
+    let progress_thread = thread::spawn(move || loop {
+        let snapshot = progress_clone.snapshot();
+        if snapshot.is_complete {
+            break;
         }
+
+        let size_str = format_size(snapshot.total_size_found);
+        let msg = format!(
+            "Scanning... {} dirs | {} projects | {} found",
+            snapshot.directories_scanned,
+            snapshot.projects_found,
+            size_str.yellow()
+        );
+        pb_clone.set_message(msg);
+
+        thread::sleep(Duration::from_millis(50));
     });
 
     // Scan
@@ -499,7 +517,14 @@ fn cmd_scan(cli: &Cli, detailed: bool) -> Result<()> {
     // Sort by size (largest first)
     projects.sort_by(|a, b| b.cleanable_size.cmp(&a.cleanable_size));
 
-    display_scan_results(cli, &config, projects, scan_result.directories_scanned, scan_result.duration, detailed)
+    display_scan_results(
+        cli,
+        &config,
+        projects,
+        scan_result.directories_scanned,
+        scan_result.duration,
+        detailed,
+    )
 }
 
 fn display_scan_results(
@@ -521,12 +546,13 @@ fn display_scan_results(
     let total_size: u64 = projects.iter().map(|p| p.cleanable_size).sum();
 
     // Split into displayed and hidden
-    let (displayed, hidden): (Vec<_>, Vec<_>) = if display_limit > 0 && display_limit < projects.len() {
-        let (d, h) = projects.split_at(display_limit);
-        (d.to_vec(), h.to_vec())
-    } else {
-        (projects, vec![])
-    };
+    let (displayed, hidden): (Vec<_>, Vec<_>) =
+        if display_limit > 0 && display_limit < projects.len() {
+            let (d, h) = projects.split_at(display_limit);
+            (d.to_vec(), h.to_vec())
+        } else {
+            (projects, vec![])
+        };
 
     // Display header
     println!(
@@ -549,7 +575,10 @@ fn display_scan_results(
 
     if displayed.is_empty() {
         println!("  No cleanable artifacts found (min size: 1MB).");
-        println!("  {}", "Use --min-size 0 or -v to see smaller items".dimmed());
+        println!(
+            "  {}",
+            "Use --min-size 0 or -v to see smaller items".dimmed()
+        );
         return Ok(());
     }
 
@@ -572,7 +601,9 @@ fn display_scan_results(
 
         // Get relative path if possible
         let display_path = if let Some(first_root) = config.roots.first() {
-            project.root.strip_prefix(first_root)
+            project
+                .root
+                .strip_prefix(first_root)
                 .map(|p| p.display().to_string())
                 .unwrap_or_else(|_| project.root.display().to_string())
         } else {
@@ -624,12 +655,13 @@ fn display_scan_results(
     println!();
 
     // Quick actions hint
-    if total_size > 100_000_000 { // > 100MB
+    if total_size > 100_000_000 {
+        // > 100MB
         println!(
             "{} {} {} {}",
             "💡".dimmed(),
             "Quick clean:".dimmed(),
-            "null-eclean --dry-run".cyan(),
+            "null-e clean --dry-run".cyan(),
             "(preview what would be deleted)".dimmed()
         );
     }
@@ -652,8 +684,10 @@ fn cmd_clean(cli: &Cli, _only: &[String], _exclude: &[String]) -> Result<()> {
     let scanner = ParallelScanner::new(registry);
 
     // Build config
-    let mut config = ScanConfig::default();
-    config.roots = paths;
+    let mut config = ScanConfig {
+        roots: paths,
+        ..Default::default()
+    };
     if let Some(depth) = cli.max_depth {
         config.max_depth = Some(depth);
     }
@@ -869,7 +903,7 @@ fn cmd_list() -> Result<()> {
 }
 
 fn cmd_caches(cli: &Cli, clean: bool, clean_all: bool, use_official: bool) -> Result<()> {
-    use null_e::caches::{detect_caches, calculate_all_sizes, CachesSummary};
+    use null_e::caches::{calculate_all_sizes, detect_caches, CachesSummary};
 
     println!(
         "{} {}",
@@ -975,19 +1009,15 @@ fn cmd_caches(cli: &Cli, clean: bool, clean_all: bool, use_official: bool) -> Re
 
     // If not cleaning, show hints
     if !clean && !clean_all {
-        println!(
-            "{} {}",
-            "💡".dimmed(),
-            "Commands:".dimmed()
-        );
+        println!("{} {}", "💡".dimmed(), "Commands:".dimmed());
         println!(
             "   {} {}",
-            "null-ecaches --clean".cyan(),
+            "null-e caches --clean".cyan(),
             "Interactive selection".dimmed()
         );
         println!(
             "   {} {}",
-            "null-ecaches --clean-all".cyan(),
+            "null-e caches --clean-all".cyan(),
             "Clean all caches".dimmed()
         );
         return Ok(());
@@ -1152,11 +1182,7 @@ fn clean_selected_caches(
     }
 
     if failed_count > 0 {
-        println!(
-            "{} {} caches failed to clean",
-            "⚠".yellow(),
-            failed_count
-        );
+        println!("{} {} caches failed to clean", "⚠".yellow(), failed_count);
     }
 
     Ok(())
@@ -1173,7 +1199,8 @@ fn parse_selection(input: &str, max: usize) -> Vec<usize> {
             // Range like "1-5"
             let parts: Vec<&str> = part.split('-').collect();
             if parts.len() == 2 {
-                if let (Ok(start), Ok(end)) = (parts[0].parse::<usize>(), parts[1].parse::<usize>()) {
+                if let (Ok(start), Ok(end)) = (parts[0].parse::<usize>(), parts[1].parse::<usize>())
+                {
                     for i in start..=end {
                         if i >= 1 && i <= max {
                             result.push(i - 1); // Convert to 0-indexed
@@ -1207,7 +1234,7 @@ fn get_scan_paths(cli: &Cli) -> Result<Vec<PathBuf>> {
         // Validate paths
         for path in &cli.paths {
             if !path.exists() {
-                return Err(DevSweepError::PathNotFound(path.clone()));
+                return Err(NullEError::PathNotFound(path.clone()));
             }
         }
         Ok(cli.paths.clone())
@@ -1224,19 +1251,10 @@ fn format_size(bytes: u64) -> String {
 
 fn cmd_sweep(cli: &Cli, clean: bool, category: Option<&str>) -> Result<()> {
     use null_e::cleaners::{
-        xcode::XcodeCleaner,
-        android::AndroidCleaner,
-        docker::DockerCleaner,
-        ml::MlCleaner,
-        ide::IdeCleaner,
-        logs::LogsCleaner,
-        homebrew::HomebrewCleaner,
-        ios_deps::IosDependencyCleaner,
-        electron::ElectronCleaner,
-        gamedev::GameDevCleaner,
-        cloud::CloudCliCleaner,
-        macos::MacOsCleaner,
-        CleanableItem, CleanerSummary,
+        android::AndroidCleaner, cloud::CloudCliCleaner, docker::DockerCleaner,
+        electron::ElectronCleaner, gamedev::GameDevCleaner, homebrew::HomebrewCleaner,
+        ide::IdeCleaner, ios_deps::IosDependencyCleaner, logs::LogsCleaner, macos::MacOsCleaner,
+        ml::MlCleaner, xcode::XcodeCleaner, CleanableItem, CleanerSummary,
     };
 
     println!(
@@ -1259,7 +1277,10 @@ fn cmd_sweep(cli: &Cli, clean: bool, category: Option<&str>) -> Result<()> {
     // Collect items from all cleaners based on category filter
     let categories: Vec<&str> = match category {
         Some(c) => vec![c],
-        None => vec!["xcode", "android", "docker", "ml", "ide", "logs", "homebrew", "ios", "electron", "gamedev", "cloud", "macos"],
+        None => vec![
+            "xcode", "android", "docker", "ml", "ide", "logs", "homebrew", "ios", "electron",
+            "gamedev", "cloud", "macos",
+        ],
     };
 
     for cat in &categories {
@@ -1414,7 +1435,11 @@ fn cmd_sweep(cli: &Cli, clean: bool, category: Option<&str>) -> Result<()> {
     println!("   {}", "─".repeat(75).dimmed());
 
     // Display items (top 30 or all if verbose)
-    let display_count = if cli.verbose || cli.all { all_items.len() } else { 30.min(all_items.len()) };
+    let display_count = if cli.verbose || cli.all {
+        all_items.len()
+    } else {
+        30.min(all_items.len())
+    };
 
     for (i, item) in all_items.iter().take(display_count).enumerate() {
         let num = format!("[{}]", i + 1);
@@ -1437,8 +1462,8 @@ fn cmd_sweep(cli: &Cli, clean: bool, category: Option<&str>) -> Result<()> {
             null_e::cleaners::SafetyLevel::Dangerous => "⚠ Danger".magenta().to_string(),
         };
 
-        let name = if item.name.len() > 38 {
-            format!("{}...", &item.name[..35])
+        let name = if item.name.chars().count() > 38 {
+            format!("{}...", item.name.chars().take(35).collect::<String>())
         } else {
             item.name.clone()
         };
@@ -1475,12 +1500,12 @@ fn cmd_sweep(cli: &Cli, clean: bool, category: Option<&str>) -> Result<()> {
         println!("{} {}", "💡".dimmed(), "Commands:".dimmed());
         println!(
             "   {} {}",
-            "null-esweep --clean".cyan(),
+            "null-e sweep --clean".cyan(),
             "Interactive selection".dimmed()
         );
         println!(
             "   {} {}",
-            "null-esweep --category xcode".cyan(),
+            "null-e sweep --category xcode".cyan(),
             "Filter by category".dimmed()
         );
         return Ok(());
@@ -1537,7 +1562,12 @@ fn clean_items_interactive(items: &[null_e::cleaners::CleanableItem], cli: &Cli)
 
     // Show what will be deleted
     for item in &selected_items {
-        println!("  {} {} {}", item.icon, item.name, format_size(item.size).dimmed());
+        println!(
+            "  {} {} {}",
+            item.icon,
+            item.name,
+            format_size(item.size).dimmed()
+        );
     }
 
     if !cli.force && !cli.dry_run {
@@ -1650,17 +1680,15 @@ fn run_clean_command_silent(cmd: &str) -> Result<()> {
 
     let parts: Vec<&str> = cmd.split_whitespace().collect();
     if parts.is_empty() {
-        return Err(DevSweepError::Config("Empty clean command".into()));
+        return Err(NullEError::Config("Empty clean command".into()));
     }
 
-    let output = Command::new(parts[0])
-        .args(&parts[1..])
-        .output()?;
+    let output = Command::new(parts[0]).args(&parts[1..]).output()?;
 
     if output.status.success() {
         Ok(())
     } else {
-        Err(DevSweepError::CleanFailed {
+        Err(NullEError::CleanFailed {
             path: std::path::PathBuf::from(cmd),
             reason: String::from_utf8_lossy(&output.stderr).to_string(),
         })
@@ -1674,7 +1702,11 @@ fn run_clean_command_silent(cmd: &str) -> Result<()> {
 fn cmd_xcode(cli: &Cli, clean: bool) -> Result<()> {
     use null_e::cleaners::xcode::XcodeCleaner;
 
-    println!("{} {}", "🍎 Xcode Cleanup".green().bold(), format!("v{}", null_e::VERSION).dimmed());
+    println!(
+        "{} {}",
+        "🍎 Xcode Cleanup".green().bold(),
+        format!("v{}", null_e::VERSION).dimmed()
+    );
     println!();
 
     let cleaner = match XcodeCleaner::new() {
@@ -1692,7 +1724,11 @@ fn cmd_xcode(cli: &Cli, clean: bool) -> Result<()> {
 fn cmd_android(cli: &Cli, clean: bool) -> Result<()> {
     use null_e::cleaners::android::AndroidCleaner;
 
-    println!("{} {}", "🤖 Android Cleanup".green().bold(), format!("v{}", null_e::VERSION).dimmed());
+    println!(
+        "{} {}",
+        "🤖 Android Cleanup".green().bold(),
+        format!("v{}", null_e::VERSION).dimmed()
+    );
     println!();
 
     let cleaner = match AndroidCleaner::new() {
@@ -1710,7 +1746,11 @@ fn cmd_android(cli: &Cli, clean: bool) -> Result<()> {
 fn cmd_docker(cli: &Cli, clean: bool, include_volumes: bool) -> Result<()> {
     use null_e::cleaners::docker::DockerCleaner;
 
-    println!("{} {}", "🐳 Docker Cleanup".green().bold(), format!("v{}", null_e::VERSION).dimmed());
+    println!(
+        "{} {}",
+        "🐳 Docker Cleanup".green().bold(),
+        format!("v{}", null_e::VERSION).dimmed()
+    );
     println!();
 
     let cleaner = DockerCleaner::new();
@@ -1734,7 +1774,10 @@ fn cmd_docker(cli: &Cli, clean: bool, include_volumes: bool) -> Result<()> {
         );
 
         if include_volumes {
-            println!("{} Including volumes - data may be permanently lost!", "⚠️".yellow());
+            println!(
+                "{} Including volumes - data may be permanently lost!",
+                "⚠️".yellow()
+            );
         }
 
         if !cli.force && !cli.dry_run {
@@ -1752,7 +1795,11 @@ fn cmd_docker(cli: &Cli, clean: bool, include_volumes: bool) -> Result<()> {
         }
 
         if cli.dry_run {
-            println!("{} Dry run: would free {}", "✓".green(), format_size(total_size).yellow());
+            println!(
+                "{} Dry run: would free {}",
+                "✓".green(),
+                format_size(total_size).yellow()
+            );
         } else {
             match cleaner.clean_all(include_volumes) {
                 Ok(freed) => {
@@ -1773,7 +1820,11 @@ fn cmd_docker(cli: &Cli, clean: bool, include_volumes: bool) -> Result<()> {
 fn cmd_ml(cli: &Cli, clean: bool) -> Result<()> {
     use null_e::cleaners::ml::MlCleaner;
 
-    println!("{} {}", "🤗 ML/AI Cleanup".green().bold(), format!("v{}", null_e::VERSION).dimmed());
+    println!(
+        "{} {}",
+        "🤗 ML/AI Cleanup".green().bold(),
+        format!("v{}", null_e::VERSION).dimmed()
+    );
     println!();
 
     let cleaner = match MlCleaner::new() {
@@ -1791,7 +1842,11 @@ fn cmd_ml(cli: &Cli, clean: bool) -> Result<()> {
 fn cmd_ide(cli: &Cli, clean: bool) -> Result<()> {
     use null_e::cleaners::ide::IdeCleaner;
 
-    println!("{} {}", "💻 IDE Cleanup".green().bold(), format!("v{}", null_e::VERSION).dimmed());
+    println!(
+        "{} {}",
+        "💻 IDE Cleanup".green().bold(),
+        format!("v{}", null_e::VERSION).dimmed()
+    );
     println!();
 
     let cleaner = match IdeCleaner::new() {
@@ -1809,7 +1864,11 @@ fn cmd_ide(cli: &Cli, clean: bool) -> Result<()> {
 fn cmd_homebrew(cli: &Cli, clean: bool, scrub: bool) -> Result<()> {
     use null_e::cleaners::homebrew::HomebrewCleaner;
 
-    println!("{} {}", "🍺 Homebrew Cleanup".green().bold(), format!("v{}", null_e::VERSION).dimmed());
+    println!(
+        "{} {}",
+        "🍺 Homebrew Cleanup".green().bold(),
+        format!("v{}", null_e::VERSION).dimmed()
+    );
     println!();
 
     let cleaner = match HomebrewCleaner::new() {
@@ -1854,7 +1913,11 @@ fn cmd_homebrew(cli: &Cli, clean: bool, scrub: bool) -> Result<()> {
         }
 
         if cli.dry_run {
-            println!("{} Dry run: would run 'brew cleanup{}'", "✓".green(), if scrub { " -s" } else { "" });
+            println!(
+                "{} Dry run: would run 'brew cleanup{}'",
+                "✓".green(),
+                if scrub { " -s" } else { "" }
+            );
         } else {
             match cleaner.clean_all(scrub) {
                 Ok(_) => {
@@ -1875,7 +1938,11 @@ fn cmd_homebrew(cli: &Cli, clean: bool, scrub: bool) -> Result<()> {
 fn cmd_ios_deps(cli: &Cli, clean: bool) -> Result<()> {
     use null_e::cleaners::ios_deps::IosDependencyCleaner;
 
-    println!("{} {}", "📱 iOS Dependencies Cleanup".green().bold(), format!("v{}", null_e::VERSION).dimmed());
+    println!(
+        "{} {}",
+        "📱 iOS Dependencies Cleanup".green().bold(),
+        format!("v{}", null_e::VERSION).dimmed()
+    );
     println!();
 
     let cleaner = match IosDependencyCleaner::new() {
@@ -1893,7 +1960,11 @@ fn cmd_ios_deps(cli: &Cli, clean: bool) -> Result<()> {
 fn cmd_electron(cli: &Cli, clean: bool) -> Result<()> {
     use null_e::cleaners::electron::ElectronCleaner;
 
-    println!("{} {}", "⚡ Electron Apps Cleanup".green().bold(), format!("v{}", null_e::VERSION).dimmed());
+    println!(
+        "{} {}",
+        "⚡ Electron Apps Cleanup".green().bold(),
+        format!("v{}", null_e::VERSION).dimmed()
+    );
     println!();
 
     let cleaner = match ElectronCleaner::new() {
@@ -1911,7 +1982,11 @@ fn cmd_electron(cli: &Cli, clean: bool) -> Result<()> {
 fn cmd_gamedev(cli: &Cli, clean: bool) -> Result<()> {
     use null_e::cleaners::gamedev::GameDevCleaner;
 
-    println!("{} {}", "🎮 Game Development Cleanup".green().bold(), format!("v{}", null_e::VERSION).dimmed());
+    println!(
+        "{} {}",
+        "🎮 Game Development Cleanup".green().bold(),
+        format!("v{}", null_e::VERSION).dimmed()
+    );
     println!();
 
     let cleaner = match GameDevCleaner::new() {
@@ -1929,7 +2004,11 @@ fn cmd_gamedev(cli: &Cli, clean: bool) -> Result<()> {
 fn cmd_cloud(cli: &Cli, clean: bool) -> Result<()> {
     use null_e::cleaners::cloud::CloudCliCleaner;
 
-    println!("{} {}", "☁️ Cloud CLI Cleanup".green().bold(), format!("v{}", null_e::VERSION).dimmed());
+    println!(
+        "{} {}",
+        "☁️ Cloud CLI Cleanup".green().bold(),
+        format!("v{}", null_e::VERSION).dimmed()
+    );
     println!();
 
     let cleaner = match CloudCliCleaner::new() {
@@ -1948,7 +2027,11 @@ fn cmd_cloud(cli: &Cli, clean: bool) -> Result<()> {
 fn cmd_macos(cli: &Cli, clean: bool) -> Result<()> {
     use null_e::cleaners::macos::MacOsCleaner;
 
-    println!("{} {}", "🍎 macOS System Cleanup".green().bold(), format!("v{}", null_e::VERSION).dimmed());
+    println!(
+        "{} {}",
+        "🍎 macOS System Cleanup".green().bold(),
+        format!("v{}", null_e::VERSION).dimmed()
+    );
     println!();
 
     let cleaner = match MacOsCleaner::new() {
@@ -2013,8 +2096,8 @@ fn display_and_optionally_clean(
             null_e::cleaners::SafetyLevel::Dangerous => "⚠ Danger".magenta().to_string(),
         };
 
-        let name = if item.name.len() > 38 {
-            format!("{}...", &item.name[..35])
+        let name = if item.name.chars().count() > 38 {
+            format!("{}...", item.name.chars().take(35).collect::<String>())
         } else {
             item.name.clone()
         };
@@ -2044,7 +2127,7 @@ fn display_and_optionally_clean(
         println!(
             "{} Use {} to clean interactively",
             "💡".dimmed(),
-            format!("null-e{} --clean", category.to_lowercase()).cyan()
+            format!("null-e {} --clean", category.to_lowercase()).cyan()
         );
         Ok(())
     }
@@ -2104,7 +2187,10 @@ fn cmd_git_analyze(cli: &Cli, fix: bool) -> Result<()> {
     // Sort by potential savings
     all_recommendations.sort_by(|a, b| b.potential_savings.cmp(&a.potential_savings));
 
-    let total_savings: u64 = all_recommendations.iter().map(|r| r.potential_savings).sum();
+    let total_savings: u64 = all_recommendations
+        .iter()
+        .map(|r| r.potential_savings)
+        .sum();
 
     println!(
         "{} Found {} repositories with potential savings of {}",
@@ -2140,7 +2226,11 @@ fn cmd_git_analyze(cli: &Cli, fix: bool) -> Result<()> {
             risk_symbol.green(),
             rec.title.chars().take(48).collect::<String>(),
             savings.yellow(),
-            rec.description.chars().take(40).collect::<String>().dimmed()
+            rec.description
+                .chars()
+                .take(40)
+                .collect::<String>()
+                .dimmed()
         );
 
         if cli.verbose {
@@ -2172,9 +2262,7 @@ fn cmd_git_analyze(cli: &Cli, fix: bool) -> Result<()> {
                         println!("    {} {}", "[DRY RUN]".yellow(), cmd);
                     } else {
                         // Run git gc
-                        let output = std::process::Command::new("sh")
-                            .args(["-c", cmd])
-                            .output();
+                        let output = std::process::Command::new("sh").args(["-c", cmd]).output();
 
                         match output {
                             Ok(out) if out.status.success() => {
@@ -2196,7 +2284,7 @@ fn cmd_git_analyze(cli: &Cli, fix: bool) -> Result<()> {
         println!(
             "{} Use {} to run git gc on these repositories",
             "💡".dimmed(),
-            "null-egit-analyze --fix".cyan()
+            "null-e git-analyze --fix".cyan()
         );
     }
 
@@ -2246,18 +2334,34 @@ fn cmd_stale(cli: &Cli, days: u64, clean: bool) -> Result<()> {
     pb.finish_and_clear();
 
     if all_recommendations.is_empty() {
-        println!("  No stale projects found (threshold: {} days, min size: 50MB)", days);
+        println!(
+            "  No stale projects found (threshold: {} days, min size: 50MB)",
+            days
+        );
         return Ok(());
     }
 
     // Sort by size (largest first)
     all_recommendations.sort_by(|a, b| {
-        let size_a: u64 = a.description.split(' ').filter_map(|s| parse_size(s)).next().unwrap_or(0);
-        let size_b: u64 = b.description.split(' ').filter_map(|s| parse_size(s)).next().unwrap_or(0);
+        let size_a: u64 = a
+            .description
+            .split(' ')
+            .filter_map(parse_size)
+            .next()
+            .unwrap_or(0);
+        let size_b: u64 = b
+            .description
+            .split(' ')
+            .filter_map(parse_size)
+            .next()
+            .unwrap_or(0);
         size_b.cmp(&size_a)
     });
 
-    let total_cleanable: u64 = all_recommendations.iter().map(|r| r.potential_savings).sum();
+    let total_cleanable: u64 = all_recommendations
+        .iter()
+        .map(|r| r.potential_savings)
+        .sum();
 
     println!(
         "{} Found {} stale projects with {} in cleanable artifacts",
@@ -2286,7 +2390,9 @@ fn cmd_stale(cli: &Cli, days: u64, clean: bool) -> Result<()> {
         };
 
         let risk_color = match rec.risk {
-            null_e::analysis::RiskLevel::None | null_e::analysis::RiskLevel::Low => cleanable.green().to_string(),
+            null_e::analysis::RiskLevel::None | null_e::analysis::RiskLevel::Low => {
+                cleanable.green().to_string()
+            }
             null_e::analysis::RiskLevel::Medium => cleanable.yellow().to_string(),
             null_e::analysis::RiskLevel::High => cleanable.red().to_string(),
         };
@@ -2317,13 +2423,18 @@ fn cmd_stale(cli: &Cli, days: u64, clean: bool) -> Result<()> {
     println!();
 
     if clean && total_cleanable > 0 {
-        println!("{} Cleaning build artifacts from stale projects...", "🧹".yellow());
+        println!(
+            "{} Cleaning build artifacts from stale projects...",
+            "🧹".yellow()
+        );
         println!();
 
         for rec in &all_recommendations {
             if rec.potential_savings > 0 {
                 if let Some(cmd) = &rec.fix_command {
-                    let project_name = rec.path.file_name()
+                    let project_name = rec
+                        .path
+                        .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_else(|| "Unknown".to_string());
 
@@ -2332,13 +2443,15 @@ fn cmd_stale(cli: &Cli, days: u64, clean: bool) -> Result<()> {
                     if cli.dry_run {
                         println!("    {} {}", "[DRY RUN]".yellow(), cmd);
                     } else {
-                        let output = std::process::Command::new("sh")
-                            .args(["-c", cmd])
-                            .output();
+                        let output = std::process::Command::new("sh").args(["-c", cmd]).output();
 
                         match output {
                             Ok(out) if out.status.success() => {
-                                println!("    {} Cleaned {}", "✓".green(), format_size(rec.potential_savings));
+                                println!(
+                                    "    {} Cleaned {}",
+                                    "✓".green(),
+                                    format_size(rec.potential_savings)
+                                );
                             }
                             Ok(_) | Err(_) => {
                                 println!("    {} Failed to clean", "✗".red());
@@ -2352,7 +2465,7 @@ fn cmd_stale(cli: &Cli, days: u64, clean: bool) -> Result<()> {
         println!(
             "{} Use {} to clean build artifacts",
             "💡".dimmed(),
-            format!("null-estale --days {} --clean", days).cyan()
+            format!("null-e stale --days {} --clean", days).cyan()
         );
     }
 
@@ -2406,7 +2519,10 @@ fn cmd_duplicates(cli: &Cli) -> Result<()> {
     // Sort by potential savings
     all_recommendations.sort_by(|a, b| b.potential_savings.cmp(&a.potential_savings));
 
-    let total_potential: u64 = all_recommendations.iter().map(|r| r.potential_savings).sum();
+    let total_potential: u64 = all_recommendations
+        .iter()
+        .map(|r| r.potential_savings)
+        .sum();
 
     println!(
         "{} Found {} duplicate patterns with {} potential savings",
@@ -2439,7 +2555,13 @@ fn cmd_duplicates(cli: &Cli) -> Result<()> {
             num.cyan(),
             rec.title.chars().take(55).collect::<String>(),
             savings.yellow(),
-            rec.fix_command.as_deref().unwrap_or("").chars().take(30).collect::<String>().dimmed()
+            rec.fix_command
+                .as_deref()
+                .unwrap_or("")
+                .chars()
+                .take(30)
+                .collect::<String>()
+                .dimmed()
         );
 
         if cli.verbose {
@@ -2456,11 +2578,7 @@ fn cmd_duplicates(cli: &Cli) -> Result<()> {
     );
     println!();
 
-    println!(
-        "{} {}",
-        "💡".dimmed(),
-        "Recommendations:".dimmed()
-    );
+    println!("{} {}", "💡".dimmed(), "Recommendations:".dimmed());
     println!(
         "   {} Use {} or {} for Node.js deduplication",
         "•".dimmed(),

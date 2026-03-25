@@ -1,6 +1,8 @@
 //! Rust/Cargo plugin
 
-use crate::core::{Artifact, ArtifactKind, ArtifactMetadata, MarkerKind, ProjectKind, ProjectMarker};
+use crate::core::{
+    Artifact, ArtifactKind, ArtifactMetadata, MarkerKind, ProjectKind, ProjectMarker,
+};
 use crate::error::Result;
 use crate::plugins::Plugin;
 use std::path::Path;
@@ -22,13 +24,11 @@ impl Plugin for RustPlugin {
     }
 
     fn markers(&self) -> Vec<ProjectMarker> {
-        vec![
-            ProjectMarker {
-                indicator: MarkerKind::File("Cargo.toml"),
-                kind: ProjectKind::Rust,
-                priority: 60,
-            },
-        ]
+        vec![ProjectMarker {
+            indicator: MarkerKind::File("Cargo.toml"),
+            kind: ProjectKind::Rust,
+            priority: 60,
+        }]
     }
 
     fn detect(&self, path: &Path) -> Option<ProjectKind> {

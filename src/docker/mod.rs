@@ -7,7 +7,7 @@
 //! - Stopped containers
 
 use crate::core::{Artifact, ArtifactKind, ArtifactMetadata};
-use crate::error::{DevSweepError, Result};
+use crate::error::{NullEError, Result};
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -62,16 +62,16 @@ pub fn is_docker_available() -> bool {
 /// Get Docker disk usage summary
 pub fn get_docker_disk_usage() -> Result<DockerDiskUsage> {
     if !is_docker_available() {
-        return Err(DevSweepError::DockerNotAvailable);
+        return Err(NullEError::DockerNotAvailable);
     }
 
     let output = Command::new("docker")
         .args(["system", "df", "--format", "{{json .}}"])
         .output()
-        .map_err(|e| DevSweepError::Docker(e.to_string()))?;
+        .map_err(|e| NullEError::Docker(e.to_string()))?;
 
     if !output.status.success() {
-        return Err(DevSweepError::Docker(
+        return Err(NullEError::Docker(
             String::from_utf8_lossy(&output.stderr).to_string(),
         ));
     }
@@ -123,10 +123,7 @@ pub struct DockerDiskUsage {
 impl DockerDiskUsage {
     /// Get total size
     pub fn total_size(&self) -> u64 {
-        self.images_size
-            + self.containers_size
-            + self.volumes_size
-            + self.build_cache_size
+        self.images_size + self.containers_size + self.volumes_size + self.build_cache_size
     }
 
     /// Get total reclaimable
@@ -200,20 +197,21 @@ struct DockerDfEntry {
 }
 
 /// Parse Docker size string (e.g., "1.5GB", "100MB")
-fn parse_docker_size(s: &str) -> u64 {
+/// Docker uses SI units: GB = 1,000,000,000, MB = 1,000,000, kB = 1,000
+pub(crate) fn parse_docker_size(s: &str) -> u64 {
     let s = s.trim();
 
     // Remove percentage in parentheses
     let s = s.split('(').next().unwrap_or(s).trim();
 
-    let (num_part, unit) = if s.ends_with("GB") {
-        (&s[..s.len() - 2], 1_000_000_000u64)
-    } else if s.ends_with("MB") {
-        (&s[..s.len() - 2], 1_000_000u64)
-    } else if s.ends_with("KB") || s.ends_with("kB") {
-        (&s[..s.len() - 2], 1_000u64)
-    } else if s.ends_with('B') {
-        (&s[..s.len() - 1], 1u64)
+    let (num_part, unit) = if let Some(stripped) = s.strip_suffix("GB") {
+        (stripped, 1_000_000_000u64)
+    } else if let Some(stripped) = s.strip_suffix("MB") {
+        (stripped, 1_000_000u64)
+    } else if let Some(stripped) = s.strip_suffix("KB").or_else(|| s.strip_suffix("kB")) {
+        (stripped, 1_000u64)
+    } else if let Some(stripped) = s.strip_suffix('B') {
+        (stripped, 1u64)
     } else {
         (s, 1u64)
     };
@@ -228,17 +226,17 @@ fn parse_docker_size(s: &str) -> u64 {
 /// Clean Docker artifacts
 pub fn clean_docker(artifact_type: DockerArtifactType) -> Result<u64> {
     if !is_docker_available() {
-        return Err(DevSweepError::DockerNotAvailable);
+        return Err(NullEError::DockerNotAvailable);
     }
 
     let args = artifact_type.clean_command();
     let output = Command::new("docker")
         .args(&args)
         .output()
-        .map_err(|e| DevSweepError::Docker(e.to_string()))?;
+        .map_err(|e| NullEError::Docker(e.to_string()))?;
 
     if !output.status.success() {
-        return Err(DevSweepError::Docker(
+        return Err(NullEError::Docker(
             String::from_utf8_lossy(&output.stderr).to_string(),
         ));
     }

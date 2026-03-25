@@ -1,16 +1,15 @@
 //! Configuration file loading and saving
 
 use super::Config;
-use crate::error::{DevSweepError, Result};
+use crate::error::{NullEError, Result};
 use std::path::{Path, PathBuf};
 
 /// Get the default config file path
 pub fn default_config_path() -> Result<PathBuf> {
-    let config_dir = dirs::config_dir().ok_or_else(|| {
-        DevSweepError::Config("Cannot determine config directory".into())
-    })?;
+    let config_dir = dirs::config_dir()
+        .ok_or_else(|| NullEError::Config("Cannot determine config directory".into()))?;
 
-    Ok(config_dir.join("devsweep").join("config.toml"))
+    Ok(config_dir.join("null-e").join("config.toml"))
 }
 
 /// Load configuration from file
@@ -19,18 +18,14 @@ pub fn load_config(path: &Path) -> Result<Config> {
         return Ok(Config::default());
     }
 
-    let content = std::fs::read_to_string(path).map_err(|e| {
-        DevSweepError::ConfigParse {
-            path: path.to_path_buf(),
-            reason: e.to_string(),
-        }
+    let content = std::fs::read_to_string(path).map_err(|e| NullEError::ConfigParse {
+        path: path.to_path_buf(),
+        reason: e.to_string(),
     })?;
 
-    let config: Config = toml::from_str(&content).map_err(|e| {
-        DevSweepError::ConfigParse {
-            path: path.to_path_buf(),
-            reason: e.to_string(),
-        }
+    let config: Config = toml::from_str(&content).map_err(|e| NullEError::ConfigParse {
+        path: path.to_path_buf(),
+        reason: e.to_string(),
     })?;
 
     Ok(config)
@@ -63,8 +58,8 @@ pub fn save_default_config(config: &Config) -> Result<()> {
 
 /// Generate a sample configuration file
 pub fn generate_sample_config() -> String {
-    r#"# DevSweep Configuration
-# Location: ~/.config/devsweep/config.toml
+    r#"# null-e Configuration
+# Location: ~/.config/null-e/config.toml
 
 [general]
 # Default directories to scan (leave empty to require explicit path)
@@ -147,7 +142,8 @@ enabled = []
 
 # Disabled plugins
 disabled = []
-"#.to_string()
+"#
+    .to_string()
 }
 
 /// Initialize config directory with sample config
@@ -155,7 +151,7 @@ pub fn init_config() -> Result<PathBuf> {
     let path = default_config_path()?;
 
     if path.exists() {
-        return Err(DevSweepError::Config(format!(
+        return Err(NullEError::Config(format!(
             "Config file already exists at {}",
             path.display()
         )));
@@ -185,7 +181,10 @@ mod tests {
 
         let config = load_config(&path).unwrap();
         // Should return default config
-        assert_eq!(config.clean.delete_method, crate::trash::DeleteMethod::Trash);
+        assert_eq!(
+            config.clean.delete_method,
+            crate::trash::DeleteMethod::Trash
+        );
     }
 
     #[test]

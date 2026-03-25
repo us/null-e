@@ -12,7 +12,7 @@ null-e config --init
 null-e config --path
 ```
 
-Config location: `~/.config/devsweep/config.toml`
+Config location: `~/.config/null-e/config.toml`
 
 ## Full Reference
 

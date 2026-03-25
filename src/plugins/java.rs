@@ -1,6 +1,8 @@
 //! Java plugin (Maven and Gradle)
 
-use crate::core::{Artifact, ArtifactKind, ArtifactMetadata, MarkerKind, ProjectKind, ProjectMarker};
+use crate::core::{
+    Artifact, ArtifactKind, ArtifactMetadata, MarkerKind, ProjectKind, ProjectMarker,
+};
 use crate::error::Result;
 use crate::plugins::Plugin;
 use std::path::Path;
@@ -190,11 +192,7 @@ mod tests {
     #[test]
     fn test_detect_maven() {
         let temp = TempDir::new().unwrap();
-        std::fs::write(
-            temp.path().join("pom.xml"),
-            r#"<project></project>"#,
-        )
-        .unwrap();
+        std::fs::write(temp.path().join("pom.xml"), r#"<project></project>"#).unwrap();
 
         let plugin = MavenPlugin;
         assert_eq!(plugin.detect(temp.path()), Some(ProjectKind::JavaMaven));

@@ -8,6 +8,7 @@
 
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
 use crate::error::Result;
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::path::PathBuf;
 
@@ -101,7 +102,8 @@ impl MacOsCleaner {
                     continue;
                 }
 
-                let container_name = path.file_name()
+                let container_name = path
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
 
@@ -111,9 +113,9 @@ impl MacOsCleaner {
                 }
 
                 // Check if this container belongs to an installed app
-                let is_orphaned = !installed_apps.iter().any(|app| {
-                    container_name.to_lowercase().contains(app)
-                });
+                let is_orphaned = !installed_apps
+                    .iter()
+                    .any(|app| container_name.to_lowercase().contains(app));
 
                 if !is_orphaned {
                     continue;
@@ -133,7 +135,9 @@ impl MacOsCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: get_mtime(&entry.path()),
-                    description: "Container data for possibly uninstalled app. Verify before deleting.",
+                    description: Cow::Borrowed(
+                        "Container data for possibly uninstalled app. Verify before deleting.",
+                    ),
                     safe_to_delete: SafetyLevel::Caution,
                     clean_command: None,
                 });
@@ -170,14 +174,15 @@ impl MacOsCleaner {
         if let Ok(entries) = std::fs::read_dir(&caches_path) {
             for entry in entries.filter_map(|e| e.ok()) {
                 let path = entry.path();
-                let name = path.file_name()
+                let name = path
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
 
                 // Skip known patterns
-                let should_skip = skip_patterns.iter().any(|p| {
-                    name.to_lowercase().contains(&p.to_lowercase())
-                });
+                let should_skip = skip_patterns
+                    .iter()
+                    .any(|p| name.to_lowercase().contains(&p.to_lowercase()));
 
                 if should_skip {
                     continue;
@@ -202,7 +207,7 @@ impl MacOsCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: get_mtime(&entry.path()),
-                    description: "Application cache. Usually safe to delete.",
+                    description: Cow::Borrowed("Application cache. Usually safe to delete."),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: None,
                 });
@@ -246,14 +251,15 @@ impl MacOsCleaner {
                     continue;
                 }
 
-                let name = path.file_name()
+                let name = path
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
 
                 // Skip known patterns
-                let should_skip = skip_patterns.iter().any(|p| {
-                    name.to_lowercase().contains(&p.to_lowercase())
-                });
+                let should_skip = skip_patterns
+                    .iter()
+                    .any(|p| name.to_lowercase().contains(&p.to_lowercase()));
 
                 if should_skip {
                     continue;
@@ -282,7 +288,7 @@ impl MacOsCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: get_mtime(&entry.path()),
-                    description: "Application data for possibly uninstalled app.",
+                    description: Cow::Borrowed("Application data for possibly uninstalled app."),
                     safe_to_delete: SafetyLevel::Caution,
                     clean_command: None,
                 });
@@ -321,7 +327,7 @@ impl MacOsCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Font rendering cache. Will be rebuilt.",
+                description: Cow::Borrowed("Font rendering cache. Will be rebuilt."),
                 safe_to_delete: SafetyLevel::Safe,
                 clean_command: Some("sudo atsutil databases -remove".to_string()),
             });

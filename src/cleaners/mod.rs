@@ -18,26 +18,27 @@
 //! - System cleanup (Trash, Downloads, Temp, Big Files)
 //! - Language Runtimes (nvm, pyenv, rbenv, rustup, sdkman, gvm)
 
-pub mod xcode;
 pub mod android;
+pub mod binaries;
+pub mod browsers_test;
+pub mod cloud;
 pub mod docker;
-pub mod ml;
-pub mod ide;
-pub mod logs;
-pub mod homebrew;
-pub mod ios_deps;
 pub mod electron;
 pub mod gamedev;
-pub mod cloud;
+pub mod homebrew;
+pub mod ide;
+pub mod ios_deps;
+pub mod logs;
 pub mod macos;
 pub mod misc;
-pub mod browsers_test;
-pub mod system;
+pub mod ml;
 pub mod runtimes;
-pub mod binaries;
+pub mod system;
+pub mod xcode;
 
 use crate::error::Result;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
@@ -61,7 +62,7 @@ pub struct CleanableItem {
     /// Last modification time
     pub last_modified: Option<SystemTime>,
     /// Description of what this is
-    pub description: &'static str,
+    pub description: Cow<'static, str>,
     /// Is it safe to delete?
     pub safe_to_delete: SafetyLevel,
     /// Official clean command (if available)
@@ -149,12 +150,15 @@ pub struct CategorySummary {
 
 impl CleanerSummary {
     pub fn from_items(items: &[CleanableItem]) -> Self {
-        let mut summary = Self::default();
-        summary.total_items = items.len();
-        summary.total_size = items.iter().map(|i| i.size).sum();
+        let mut summary = Self {
+            total_items: items.len(),
+            total_size: items.iter().map(|i| i.size).sum(),
+            ..Default::default()
+        };
 
         for item in items {
-            let entry = summary.by_category
+            let entry = summary
+                .by_category
                 .entry(item.category.clone())
                 .or_insert_with(|| CategorySummary {
                     name: item.category.clone(),

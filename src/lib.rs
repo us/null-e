@@ -81,18 +81,17 @@ pub mod tui;
 
 /// Prelude module for convenient imports
 pub mod prelude {
-    pub use crate::core::{
-        Artifact, ArtifactKind, ArtifactMetadata, ArtifactStats,
-        CleanConfig, CleanProgress, CleanResult, CleanSafety, CleanSummary, CleanTarget, Cleaner,
-        Project, ProjectId, ProjectKind,
-        ScanConfig, ScanProgress, ScanResult, Scanner,
-    };
     pub use crate::config::Config;
-    pub use crate::error::{DevSweepError, Result, ResultExt};
-    pub use crate::git::{ProtectionLevel, get_git_status};
+    pub use crate::core::{
+        Artifact, ArtifactKind, ArtifactMetadata, ArtifactStats, CleanConfig, CleanProgress,
+        CleanResult, CleanSafety, CleanSummary, CleanTarget, Cleaner, Project, ProjectId,
+        ProjectKind, ScanConfig, ScanProgress, ScanResult, Scanner,
+    };
+    pub use crate::error::{NullEError, Result, ResultExt};
+    pub use crate::git::{get_git_status, ProtectionLevel};
     pub use crate::plugins::{Plugin, PluginRegistry};
     pub use crate::scanner::ParallelScanner;
-    pub use crate::trash::{DeleteMethod, delete_path, delete_artifact};
+    pub use crate::trash::{delete_artifact, delete_path, DeleteMethod};
 }
 
 /// Version information

@@ -4,7 +4,7 @@
 //! When a directory's modification time hasn't changed, we can skip rescanning it.
 
 use crate::core::Project;
-use crate::error::{DevSweepError, Result};
+use crate::error::{NullEError, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -73,7 +73,7 @@ impl ScanCache {
 
         // Check TTL
         let now = current_timestamp();
-        if now - cached.cached_at > Self::TTL_SECS {
+        if now.saturating_sub(cached.cached_at) > Self::TTL_SECS {
             return None; // Cache expired
         }
 
@@ -99,20 +99,26 @@ impl ScanCache {
         let root = project.root.clone();
         let mtime = get_mtime(&root).unwrap_or(0);
 
-        self.projects.insert(root, CachedProject {
-            project,
-            root_mtime: mtime,
-            cached_at: current_timestamp(),
-        });
+        self.projects.insert(
+            root,
+            CachedProject {
+                project,
+                root_mtime: mtime,
+                cached_at: current_timestamp(),
+            },
+        );
     }
 
     /// Cache a directory scan result
     pub fn cache_directory(&mut self, path: PathBuf, project_roots: Vec<PathBuf>) {
         let mtime = get_mtime(&path).unwrap_or(0);
-        self.directories.insert(path, CachedDirectory {
-            mtime,
-            project_roots,
-        });
+        self.directories.insert(
+            path,
+            CachedDirectory {
+                mtime,
+                project_roots,
+            },
+        );
     }
 
     /// Update the cache timestamp
@@ -129,16 +135,14 @@ impl ScanCache {
 
         // TTL check
         let now = current_timestamp();
-        now - self.updated_at < Self::TTL_SECS
+        now.saturating_sub(self.updated_at) < Self::TTL_SECS
     }
 
     /// Get all valid cached projects
     pub fn get_all_valid_projects(&self) -> Vec<Project> {
         self.projects
             .iter()
-            .filter_map(|(path, _cached)| {
-                self.get_valid_project(path).map(|c| c.project.clone())
-            })
+            .filter_map(|(path, _cached)| self.get_valid_project(path).map(|c| c.project.clone()))
             .collect()
     }
 
@@ -158,14 +162,14 @@ impl ScanCache {
 /// Get the default cache file path
 pub fn default_cache_path() -> Result<PathBuf> {
     let cache_dir = dirs::cache_dir()
-        .ok_or_else(|| DevSweepError::Config("Could not find cache directory".into()))?;
+        .ok_or_else(|| NullEError::Config("Could not find cache directory".into()))?;
 
-    let devsweep_cache = cache_dir.join("devsweep");
-    if !devsweep_cache.exists() {
-        fs::create_dir_all(&devsweep_cache)?;
+    let null_e_cache = cache_dir.join("null-e");
+    if !null_e_cache.exists() {
+        fs::create_dir_all(&null_e_cache)?;
     }
 
-    Ok(devsweep_cache.join("scan_cache.json"))
+    Ok(null_e_cache.join("scan_cache.json"))
 }
 
 /// Load the cache from disk
@@ -178,7 +182,7 @@ pub fn load_cache() -> Result<ScanCache> {
 
     let content = fs::read_to_string(&path)?;
     let cache: ScanCache = serde_json::from_str(&content)
-        .map_err(|e| DevSweepError::Config(format!("Invalid cache file: {}", e)))?;
+        .map_err(|e| NullEError::Config(format!("Invalid cache file: {}", e)))?;
 
     // Check version
     if cache.version != ScanCache::VERSION {
@@ -231,13 +235,14 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let cache_path = temp.path().join("test_cache.json");
 
-        let mut cache = ScanCache::new();
+        let cache = ScanCache::new();
         // Add a dummy project would go here
 
         let content = serde_json::to_string(&cache).unwrap();
         fs::write(&cache_path, &content).unwrap();
 
-        let loaded: ScanCache = serde_json::from_str(&fs::read_to_string(&cache_path).unwrap()).unwrap();
+        let loaded: ScanCache =
+            serde_json::from_str(&fs::read_to_string(&cache_path).unwrap()).unwrap();
         assert_eq!(loaded.version, cache.version);
     }
 }

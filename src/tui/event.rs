@@ -2,7 +2,9 @@
 //!
 //! Handles keyboard and terminal events in a separate thread.
 
-use crossterm::event::{self, Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers, MouseEventKind};
+use crossterm::event::{
+    self, Event as CrosstermEvent, KeyCode, KeyEvent, KeyModifiers, MouseEventKind,
+};
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -47,10 +49,10 @@ impl EventHandler {
                     match event::read() {
                         Ok(CrosstermEvent::Key(key)) => {
                             // Filter out release events on some terminals
-                            if key.kind == crossterm::event::KeyEventKind::Press {
-                                if tx.send(Event::Key(key)).is_err() {
-                                    return;
-                                }
+                            if key.kind == crossterm::event::KeyEventKind::Press
+                                && tx.send(Event::Key(key)).is_err()
+                            {
+                                return;
                             }
                         }
                         Ok(CrosstermEvent::Mouse(mouse)) => {
@@ -157,9 +159,19 @@ impl Action {
             // Navigation
             KeyCode::Up | KeyCode::Char('k') => Action::Up,
             KeyCode::Down | KeyCode::Char('j') => Action::Down,
-            KeyCode::PageUp | KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::PageUp,
-            KeyCode::PageDown | KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::PageDown,
-            KeyCode::Home | KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::NONE) => Action::Top,
+            KeyCode::PageUp | KeyCode::Char('u')
+                if key.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                Action::PageUp
+            }
+            KeyCode::PageDown | KeyCode::Char('d')
+                if key.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                Action::PageDown
+            }
+            KeyCode::Home | KeyCode::Char('g') if key.modifiers == KeyModifiers::NONE => {
+                Action::Top
+            }
             KeyCode::End | KeyCode::Char('G') => Action::Bottom,
 
             // Expand/Collapse with arrow keys
@@ -171,7 +183,9 @@ impl Action {
             KeyCode::Char(' ') => Action::ToggleExpand,
             KeyCode::Char('a') => Action::SelectAll,
             KeyCode::Char('A') => Action::DeselectAll,
-            KeyCode::Char('u') if !key.modifiers.contains(KeyModifiers::CONTROL) => Action::DeselectAll,
+            KeyCode::Char('u') if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+                Action::DeselectAll
+            }
 
             // Actions
             KeyCode::Char('d') if !key.modifiers.contains(KeyModifiers::CONTROL) => Action::Delete,

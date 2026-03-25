@@ -84,7 +84,10 @@ impl GitAnalyzer {
             let path = entry.path();
 
             // Skip common non-project directories
-            let name = path.file_name().map(|n| n.to_string_lossy()).unwrap_or_default();
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy())
+                .unwrap_or_default();
             if name == "node_modules" || name == ".cargo" || name == "target" || name == "venv" {
                 continue;
             }
@@ -124,8 +127,8 @@ impl GitAnalyzer {
         let (pack_count, pack_size) = self.count_packs(&pack_dir);
 
         // Check if gc would help
-        let gc_recommended = loose_count > self.min_loose_objects ||
-                            (loose_size > 50_000_000 && loose_count > 500);
+        let gc_recommended =
+            loose_count > self.min_loose_objects || (loose_size > 50_000_000 && loose_count > 500);
 
         // Estimate savings (loose objects can usually be compressed 50-80%)
         let estimated_savings = if gc_recommended {
@@ -171,7 +174,10 @@ impl GitAnalyzer {
             };
 
             let fix_command = if gc_recommended {
-                Some(format!("cd {:?} && git gc --aggressive --prune=now", repo_path))
+                Some(format!(
+                    "cd {:?} && git gc --aggressive --prune=now",
+                    repo_path
+                ))
             } else {
                 None
             };

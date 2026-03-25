@@ -11,7 +11,29 @@
 
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
 use crate::error::Result;
+use std::borrow::Cow;
 use std::path::PathBuf;
+
+/// Extra cache bundle IDs that don't follow the standard naming pattern.
+/// Maps Application Support folder name → known ~/Library/Caches/ bundle ID.
+const EXTRA_CACHE_BUNDLE_IDS: &[(&str, &str)] = &[
+    ("Spotify", "com.spotify.client"),
+    ("discord", "com.hnc.Discord"),
+    (
+        "com.stremio.stremio-shell-macos",
+        "com.stremio.stremio-shell-macos",
+    ),
+    (
+        "com.stremio.stremio-shell-macos",
+        "com.westbridge.stremio5-mac",
+    ),
+    ("Figma", "com.figma.Desktop"),
+    ("Google/Chrome", "com.google.Chrome"),
+    ("BraveSoftware/Brave-Browser", "com.brave.Browser"),
+    ("Arc", "company.thebrowser.Browser"),
+    ("Microsoft Edge", "com.microsoft.edgemac"),
+    ("com.operasoftware.Opera", "com.operasoftware.Opera"),
+];
 
 /// Known Electron apps with their cache locations
 const ELECTRON_APPS: &[(&str, &str, &str)] = &[
@@ -47,6 +69,15 @@ const ELECTRON_APPS: &[(&str, &str, &str)] = &[
     ("ClickUp", "ClickUp", "✅"),
     ("Todoist", "Todoist", "☑️"),
     ("Trello", "Trello", "📋"),
+    ("Stremio", "com.stremio.stremio-shell-macos", "📺"),
+    ("Antigravity", "Antigravity", "🚀"),
+    ("Anytype", "anytype", "📐"),
+    ("Chrome", "Google/Chrome", "🌐"),
+    ("Brave", "BraveSoftware/Brave-Browser", "🦁"),
+    ("Arc", "Arc", "🌈"),
+    ("Edge", "Microsoft Edge", "🔵"),
+    ("Opera", "com.operasoftware.Opera", "🔴"),
+    ("Vivaldi", "Vivaldi", "🎹"),
 ];
 
 /// Electron apps cleaner
@@ -97,7 +128,16 @@ impl ElectronCleaner {
             let support_path = app_support.join(folder_name);
             if support_path.exists() {
                 // Check for specific cache directories within
-                let cache_subdirs = ["Cache", "CachedData", "GPUCache", "Code Cache", "Service Worker", "blob_storage"];
+                let cache_subdirs = [
+                    "Cache",
+                    "CachedData",
+                    "GPUCache",
+                    "Code Cache",
+                    "Service Worker",
+                    "blob_storage",
+                    "DesktopProfile",
+                    "PersistentCache",
+                ];
 
                 for subdir in cache_subdirs {
                     let cache_path = support_path.join(subdir);
@@ -125,14 +165,21 @@ impl ElectronCleaner {
             }
 
             // Check Caches folder
-            let cache_variants = [
+            let mut cache_variants = vec![
                 folder_name.to_string(),
                 format!("com.{}.desktop", folder_name.to_lowercase()),
                 format!("com.{}", folder_name.to_lowercase()),
             ];
 
-            for variant in cache_variants {
-                let cache_path = caches.join(&variant);
+            // Add known bundle IDs that don't follow the standard pattern
+            for (name, bundle_id) in EXTRA_CACHE_BUNDLE_IDS {
+                if *name == *folder_name {
+                    cache_variants.push(bundle_id.to_string());
+                }
+            }
+
+            for variant in &cache_variants {
+                let cache_path = caches.join(variant);
                 if cache_path.exists() {
                     let (size, file_count) = calculate_dir_size(&cache_path)?;
                     if size > 30_000_000 {
@@ -156,7 +203,9 @@ impl ElectronCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: None,
-                        description: "Electron app cache. Will be rebuilt on next launch.",
+                        description: Cow::Borrowed(
+                            "Electron app cache. Will be rebuilt on next launch.",
+                        ),
                         safe_to_delete: SafetyLevel::SafeWithCost,
                         clean_command: None,
                     });
@@ -173,7 +222,7 @@ impl ElectronCleaner {
                             size: total_size,
                             file_count: Some(app_items.iter().map(|(_, _, c, _)| *c).sum()),
                             last_modified: None,
-                            description: "Electron app cache and data. Consider cleaning individual subdirectories.",
+                            description: Cow::Borrowed("Electron app cache and data. Consider cleaning individual subdirectories."),
                             safe_to_delete: SafetyLevel::Caution,
                             clean_command: None,
                         });
@@ -201,14 +250,15 @@ impl ElectronCleaner {
         if let Ok(entries) = std::fs::read_dir(&caches) {
             for entry in entries.filter_map(|e| e.ok()) {
                 let path = entry.path();
-                let name = path.file_name()
+                let name = path
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
 
                 // Skip known apps we already handle
-                let already_handled = ELECTRON_APPS.iter().any(|(_, folder, _)| {
-                    name.to_lowercase().contains(&folder.to_lowercase())
-                });
+                let already_handled = ELECTRON_APPS
+                    .iter()
+                    .any(|(_, folder, _)| name.to_lowercase().contains(&folder.to_lowercase()));
 
                 if already_handled {
                     continue;
@@ -230,7 +280,7 @@ impl ElectronCleaner {
                             size,
                             file_count: Some(file_count),
                             last_modified: get_mtime(&entry.path()),
-                            description: "Electron/Chromium-based app cache.",
+                            description: Cow::Borrowed("Electron/Chromium-based app cache."),
                             safe_to_delete: SafetyLevel::SafeWithCost,
                             clean_command: None,
                         });
@@ -268,7 +318,7 @@ impl ElectronCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: None,
-                        description: "Electron app cache.",
+                        description: Cow::Borrowed("Electron app cache."),
                         safe_to_delete: SafetyLevel::SafeWithCost,
                         clean_command: None,
                     });
@@ -304,7 +354,7 @@ impl ElectronCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: None,
-                        description: "Electron app cache.",
+                        description: Cow::Borrowed("Electron app cache."),
                         safe_to_delete: SafetyLevel::SafeWithCost,
                         clean_command: None,
                     });

@@ -10,7 +10,8 @@
 
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
 use crate::error::Result;
-use std::path::PathBuf;
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
 
 /// ML/AI cleaner
 pub struct MlCleaner {
@@ -79,7 +80,8 @@ impl MlCleaner {
                         continue;
                     }
 
-                    let entry_name = entry_path.file_name()
+                    let entry_name = entry_path
+                        .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_default();
 
@@ -109,7 +111,9 @@ impl MlCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: get_mtime(&entry.path()),
-                        description: "Downloaded ML model or dataset. Can be re-downloaded.",
+                        description: Cow::Borrowed(
+                            "Downloaded ML model or dataset. Can be re-downloaded.",
+                        ),
                         safe_to_delete: SafetyLevel::SafeWithCost,
                         clean_command: None,
                     });
@@ -152,7 +156,9 @@ impl MlCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Local LLM models. Can be re-downloaded with 'ollama pull'.",
+                    description: Cow::Borrowed(
+                        "Local LLM models. Can be re-downloaded with 'ollama pull'.",
+                    ),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: Some("ollama rm <model>".to_string()),
                 });
@@ -163,30 +169,44 @@ impl MlCleaner {
     }
 
     /// Scan Ollama manifests for model info
-    fn scan_ollama_manifests(&self, manifests_path: &PathBuf, _blobs_path: &PathBuf, items: &mut Vec<CleanableItem>) -> Result<()> {
+    fn scan_ollama_manifests(
+        &self,
+        manifests_path: &Path,
+        blobs_path: &Path,
+        items: &mut Vec<CleanableItem>,
+    ) -> Result<()> {
         // manifests/registry.ollama.ai/library/<model>/<tag>
         let registry_path = manifests_path.join("registry.ollama.ai/library");
         if !registry_path.exists() {
             return Ok(());
         }
 
+        // Calculate actual blobs directory size instead of using an arbitrary multiplier
+        let (blobs_size, blobs_file_count) = if blobs_path.exists() {
+            calculate_dir_size(blobs_path)?
+        } else {
+            (0, 0)
+        };
+
         if let Ok(models) = std::fs::read_dir(&registry_path) {
-            for model in models.filter_map(|e| e.ok()) {
+            let model_entries: Vec<_> = models.filter_map(|e| e.ok()).collect();
+            let model_count = model_entries.len().max(1) as u64;
+
+            for model in model_entries {
                 let model_path = model.path();
                 if !model_path.is_dir() {
                     continue;
                 }
 
-                let model_name = model_path.file_name()
+                let model_name = model_path
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
 
-                // Get total size for this model
-                let (size, file_count) = calculate_dir_size(&model_path)?;
-
-                // Estimate actual model size (manifests are small, blobs are big)
-                // This is a rough estimate - actual size requires parsing manifests
-                let estimated_size = size * 1000; // Manifests point to much larger blobs
+                // Approximate per-model size by dividing total blobs evenly across models
+                // (blobs are shared, so this is a rough but reasonable estimate)
+                let estimated_size = blobs_size / model_count;
+                let estimated_files = blobs_file_count / model_count;
 
                 if estimated_size > 100_000_000 {
                     items.push(CleanableItem {
@@ -196,9 +216,9 @@ impl MlCleaner {
                         icon: "🦙",
                         path: model_path,
                         size: estimated_size,
-                        file_count: Some(file_count),
+                        file_count: Some(estimated_files),
                         last_modified: get_mtime(&model.path()),
-                        description: "Local LLM model. Use 'ollama rm' to remove.",
+                        description: Cow::Borrowed("Local LLM model. Use 'ollama rm' to remove."),
                         safe_to_delete: SafetyLevel::SafeWithCost,
                         clean_command: Some(format!("ollama rm {}", model_name)),
                     });
@@ -238,7 +258,7 @@ impl MlCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "PyTorch model cache. Can be re-downloaded.",
+                description: Cow::Borrowed("PyTorch model cache. Can be re-downloaded."),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: None,
             });
@@ -268,7 +288,7 @@ impl MlCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Keras pre-trained models. Can be re-downloaded.",
+                    description: Cow::Borrowed("Keras pre-trained models. Can be re-downloaded."),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: None,
                 }]);
@@ -307,7 +327,7 @@ impl MlCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "TensorFlow model cache. Can be re-downloaded.",
+                description: Cow::Borrowed("TensorFlow model cache. Can be re-downloaded."),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: None,
             });
@@ -346,7 +366,7 @@ impl MlCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Jupyter notebook cache and runtime data.",
+                description: Cow::Borrowed("Jupyter notebook cache and runtime data."),
                 safe_to_delete: SafetyLevel::Safe,
                 clean_command: None,
             });
@@ -358,16 +378,18 @@ impl MlCleaner {
     /// Detect LM Studio models
     fn detect_lmstudio(&self) -> Result<Vec<CleanableItem>> {
         let lmstudio_path = self.home.join(".lmstudio/models");
+        let alt_path = self.home.join(".cache/lm-studio");
 
-        if !lmstudio_path.exists() {
-            // Try alternative location
-            let alt_path = self.home.join(".cache/lm-studio");
-            if !alt_path.exists() {
-                return Ok(vec![]);
-            }
-        }
+        // Use whichever path actually exists
+        let active_path = if lmstudio_path.exists() {
+            lmstudio_path
+        } else if alt_path.exists() {
+            alt_path
+        } else {
+            return Ok(vec![]);
+        };
 
-        let (size, file_count) = calculate_dir_size(&lmstudio_path)?;
+        let (size, file_count) = calculate_dir_size(&active_path)?;
         if size == 0 {
             return Ok(vec![]);
         }
@@ -377,11 +399,11 @@ impl MlCleaner {
             category: "ML/AI".to_string(),
             subcategory: "LM Studio".to_string(),
             icon: "🎯",
-            path: lmstudio_path,
+            path: active_path,
             size,
             file_count: Some(file_count),
             last_modified: None,
-            description: "LM Studio downloaded models. Can be re-downloaded.",
+            description: Cow::Borrowed("LM Studio downloaded models. Can be re-downloaded."),
             safe_to_delete: SafetyLevel::SafeWithCost,
             clean_command: None,
         }])
@@ -411,7 +433,7 @@ impl MlCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "GPT4All downloaded models. Can be re-downloaded.",
+                    description: Cow::Borrowed("GPT4All downloaded models. Can be re-downloaded."),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: None,
                 }]);

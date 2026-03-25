@@ -19,7 +19,7 @@ pub enum ProtectionLevel {
 
 impl ProtectionLevel {
     /// Parse from string
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "none" => Some(Self::None),
             "warn" => Some(Self::Warn),
@@ -93,10 +93,7 @@ impl ProtectionResult {
 }
 
 /// Check if it's safe to clean a project
-pub fn check_project_protection(
-    project: &Project,
-    level: ProtectionLevel,
-) -> ProtectionResult {
+pub fn check_project_protection(project: &Project, level: ProtectionLevel) -> ProtectionResult {
     if level == ProtectionLevel::None {
         return ProtectionResult::allowed();
     }
@@ -187,8 +184,12 @@ pub fn check_artifact_protection(
     // Check if artifact path contains uncommitted changes
     if let Some(status) = &project.git_status {
         for dirty_path in &status.dirty_paths {
+            // Resolve dirty_path (relative from git status) to absolute by prepending project root
+            let absolute_dirty_path = project.root.join(dirty_path);
             // Check if dirty path is inside artifact path
-            if dirty_path.starts_with(&artifact.path) || artifact.path.starts_with(dirty_path) {
+            if absolute_dirty_path.starts_with(&artifact.path)
+                || artifact.path.starts_with(&absolute_dirty_path)
+            {
                 let msg = format!(
                     "Artifact '{}' contains uncommitted changes",
                     artifact.path.display()
@@ -215,9 +216,7 @@ pub fn check_artifact_protection(
                 artifact.name()
             ));
         }
-        crate::core::ArtifactSafety::RequiresConfirmation
-            if level == ProtectionLevel::Paranoid =>
-        {
+        crate::core::ArtifactSafety::RequiresConfirmation if level == ProtectionLevel::Paranoid => {
             return ProtectionResult::blocked(format!(
                 "Artifact '{}' requires explicit confirmation",
                 artifact.name()
@@ -321,9 +320,12 @@ mod tests {
 
     #[test]
     fn test_protection_level_from_str() {
-        assert_eq!(ProtectionLevel::from_str("none"), Some(ProtectionLevel::None));
-        assert_eq!(ProtectionLevel::from_str("WARN"), Some(ProtectionLevel::Warn));
-        assert_eq!(ProtectionLevel::from_str("Block"), Some(ProtectionLevel::Block));
-        assert_eq!(ProtectionLevel::from_str("invalid"), None);
+        assert_eq!(ProtectionLevel::parse("none"), Some(ProtectionLevel::None));
+        assert_eq!(ProtectionLevel::parse("WARN"), Some(ProtectionLevel::Warn));
+        assert_eq!(
+            ProtectionLevel::parse("Block"),
+            Some(ProtectionLevel::Block)
+        );
+        assert_eq!(ProtectionLevel::parse("invalid"), None);
     }
 }

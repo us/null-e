@@ -8,6 +8,7 @@
 
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
 use crate::error::Result;
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 /// Logs cleaner
@@ -53,7 +54,8 @@ impl LogsCleaner {
                 if let Ok(entries) = std::fs::read_dir(&logs_path) {
                     for entry in entries.filter_map(|e| e.ok()) {
                         let path = entry.path();
-                        let name = path.file_name()
+                        let name = path
+                            .file_name()
                             .map(|n| n.to_string_lossy().to_string())
                             .unwrap_or_default();
 
@@ -84,7 +86,9 @@ impl LogsCleaner {
                             size,
                             file_count: Some(file_count),
                             last_modified: get_mtime(&entry.path()),
-                            description: "Application log files. Usually safe to delete.",
+                            description: Cow::Borrowed(
+                                "Application log files. Usually safe to delete.",
+                            ),
                             safe_to_delete: SafetyLevel::Safe,
                             clean_command: None,
                         });
@@ -114,7 +118,7 @@ impl LogsCleaner {
                                     size,
                                     file_count: Some(file_count),
                                     last_modified: None,
-                                    description: "Application log files.",
+                                    description: Cow::Borrowed("Application log files."),
                                     safe_to_delete: SafetyLevel::Safe,
                                     clean_command: None,
                                 });
@@ -175,7 +179,7 @@ impl LogsCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Development tool log files. Safe to delete.",
+                description: Cow::Borrowed("Development tool log files. Safe to delete."),
                 safe_to_delete: SafetyLevel::Safe,
                 clean_command: None,
             });
@@ -215,7 +219,9 @@ impl LogsCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Application crash reports. Safe to delete old ones.",
+                    description: Cow::Borrowed(
+                        "Application crash reports. Safe to delete old ones.",
+                    ),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: None,
                 });
@@ -243,7 +249,7 @@ impl LogsCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "npm installation and error logs. Safe to delete.",
+                    description: Cow::Borrowed("npm installation and error logs. Safe to delete."),
                     safe_to_delete: SafetyLevel::Safe,
                     clean_command: None,
                 });

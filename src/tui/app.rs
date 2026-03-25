@@ -12,7 +12,10 @@ use std::thread;
 /// Message sent from scan thread
 pub enum ScanMessage {
     /// Progress update
-    Progress { dirs_scanned: usize, message: String },
+    Progress {
+        dirs_scanned: usize,
+        message: String,
+    },
     /// Scan completed for projects
     CompleteProjects(ScanResult),
     /// Scan completed for caches
@@ -372,27 +375,25 @@ impl App {
         let mode = self.scan_mode;
 
         // Spawn scanning thread
-        thread::spawn(move || {
-            match mode {
-                ScanMode::All => Self::scan_all(tx, paths),
-                ScanMode::Projects => Self::scan_projects(tx, paths),
-                ScanMode::Caches => Self::scan_caches(tx),
-                ScanMode::Xcode => Self::scan_xcode(tx),
-                ScanMode::Docker => Self::scan_docker(tx),
-                ScanMode::IDECaches => Self::scan_ide_caches(tx),
-                ScanMode::MLCaches => Self::scan_ml_caches(tx),
-                ScanMode::Android => Self::scan_android(tx),
-                ScanMode::Electron => Self::scan_electron(tx),
-                ScanMode::Cloud => Self::scan_cloud(tx),
-                ScanMode::PackageManagers => Self::scan_package_managers(tx),
-                ScanMode::GameDev => Self::scan_gamedev(tx),
-                ScanMode::MiscTools => Self::scan_misc_tools(tx),
-                ScanMode::TestBrowsers => Self::scan_test_browsers(tx),
-                ScanMode::System => Self::scan_system(tx),
-                ScanMode::Logs => Self::scan_logs(tx),
-                ScanMode::Runtimes => Self::scan_runtimes(tx),
-                ScanMode::BinaryAnalysis => Self::scan_binaries(tx),
-            }
+        thread::spawn(move || match mode {
+            ScanMode::All => Self::scan_all(tx, paths),
+            ScanMode::Projects => Self::scan_projects(tx, paths),
+            ScanMode::Caches => Self::scan_caches(tx),
+            ScanMode::Xcode => Self::scan_xcode(tx),
+            ScanMode::Docker => Self::scan_docker(tx),
+            ScanMode::IDECaches => Self::scan_ide_caches(tx),
+            ScanMode::MLCaches => Self::scan_ml_caches(tx),
+            ScanMode::Android => Self::scan_android(tx),
+            ScanMode::Electron => Self::scan_electron(tx),
+            ScanMode::Cloud => Self::scan_cloud(tx),
+            ScanMode::PackageManagers => Self::scan_package_managers(tx),
+            ScanMode::GameDev => Self::scan_gamedev(tx),
+            ScanMode::MiscTools => Self::scan_misc_tools(tx),
+            ScanMode::TestBrowsers => Self::scan_test_browsers(tx),
+            ScanMode::System => Self::scan_system(tx),
+            ScanMode::Logs => Self::scan_logs(tx),
+            ScanMode::Runtimes => Self::scan_runtimes(tx),
+            ScanMode::BinaryAnalysis => Self::scan_binaries(tx),
         });
     }
 
@@ -769,14 +770,13 @@ impl App {
         let mut config = ScanConfig::default();
 
         // Use home directory if paths is just current dir (for better project discovery)
-        let project_paths = if paths.len() == 1 && paths[0] == std::env::current_dir().unwrap_or_default() {
-            // Default to home directory for project scanning
-            dirs::home_dir()
-                .map(|h| vec![h])
-                .unwrap_or(paths.clone())
-        } else {
-            paths
-        };
+        let project_paths =
+            if paths.len() == 1 && paths[0] == std::env::current_dir().unwrap_or_default() {
+                // Default to home directory for project scanning
+                dirs::home_dir().map(|h| vec![h]).unwrap_or(paths.clone())
+            } else {
+                paths
+            };
         config.roots = project_paths;
 
         if let Ok(result) = scanner.scan(&config) {
@@ -810,16 +810,17 @@ impl App {
         let scanner = ParallelScanner::new(registry);
 
         // Use home directory if paths is just current dir
-        let project_paths = if paths.len() == 1 && paths[0] == std::env::current_dir().unwrap_or_default() {
-            dirs::home_dir()
-                .map(|h| vec![h])
-                .unwrap_or(paths.clone())
-        } else {
-            paths
-        };
+        let project_paths =
+            if paths.len() == 1 && paths[0] == std::env::current_dir().unwrap_or_default() {
+                dirs::home_dir().map(|h| vec![h]).unwrap_or(paths.clone())
+            } else {
+                paths
+            };
 
-        let mut config = ScanConfig::default();
-        config.roots = project_paths;
+        let config = ScanConfig {
+            roots: project_paths,
+            ..Default::default()
+        };
 
         match scanner.scan(&config) {
             Ok(result) => {
@@ -1317,14 +1318,14 @@ impl App {
 
     /// Check for scan updates (call this on tick)
     pub fn check_scan_progress(&mut self) {
-        // Increment animation frame
-        self.anim_frame = self.anim_frame.wrapping_add(1);
-
         if let Some(ref rx) = self.scan_receiver {
             // Try to receive without blocking
             while let Ok(msg) = rx.try_recv() {
                 match msg {
-                    ScanMessage::Progress { dirs_scanned, message } => {
+                    ScanMessage::Progress {
+                        dirs_scanned,
+                        message,
+                    } => {
                         self.dirs_scanned = dirs_scanned;
                         self.scan_message = message;
                     }
@@ -1546,14 +1547,36 @@ impl App {
     }
 
     fn toggle_select_cache(&mut self) {
-        if let Some(cache) = self.caches.get_mut(self.selected) {
-            cache.selected = !cache.selected;
+        let selected_idx = self.selected;
+        let visible_indices: Vec<usize> = self
+            .caches
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.visible)
+            .map(|(i, _)| i)
+            .collect();
+
+        if let Some(&idx) = visible_indices.get(selected_idx) {
+            if let Some(cache) = self.caches.get_mut(idx) {
+                cache.selected = !cache.selected;
+            }
         }
     }
 
     fn toggle_select_cleaner(&mut self) {
-        if let Some(cleaner) = self.cleaners.get_mut(self.selected) {
-            cleaner.selected = !cleaner.selected;
+        let selected_idx = self.selected;
+        let visible_indices: Vec<usize> = self
+            .cleaners
+            .iter()
+            .enumerate()
+            .filter(|(_, c)| c.visible)
+            .map(|(i, _)| i)
+            .collect();
+
+        if let Some(&idx) = visible_indices.get(selected_idx) {
+            if let Some(cleaner) = self.cleaners.get_mut(idx) {
+                cleaner.selected = !cleaner.selected;
+            }
         }
     }
 
@@ -1687,17 +1710,20 @@ impl App {
 
     /// Get total selected size
     pub fn selected_size(&self) -> u64 {
-        let project_size: u64 = self.projects
+        let project_size: u64 = self
+            .projects
             .iter()
             .filter(|p| p.selected)
             .map(|p| p.project.cleanable_size)
             .sum();
-        let cache_size: u64 = self.caches
+        let cache_size: u64 = self
+            .caches
             .iter()
             .filter(|c| c.selected)
             .map(|c| c.size)
             .sum();
-        let cleaner_size: u64 = self.cleaners
+        let cleaner_size: u64 = self
+            .cleaners
             .iter()
             .filter(|c| c.selected)
             .map(|c| c.size)
@@ -1928,7 +1954,11 @@ impl App {
         ));
 
         // Recalculate total
-        self.total_size = self.projects.iter().map(|p| p.project.cleanable_size).sum::<u64>()
+        self.total_size = self
+            .projects
+            .iter()
+            .map(|p| p.project.cleanable_size)
+            .sum::<u64>()
             + self.caches.iter().map(|c| c.size).sum::<u64>()
             + self.cleaners.iter().map(|c| c.size).sum::<u64>();
 

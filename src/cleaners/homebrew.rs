@@ -7,6 +7,7 @@
 
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
 use crate::error::Result;
+use std::borrow::Cow;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -60,7 +61,7 @@ impl HomebrewCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Downloaded formula archives. Safe to delete.",
+                    description: Cow::Borrowed("Downloaded formula archives. Safe to delete."),
                     safe_to_delete: SafetyLevel::Safe,
                     clean_command: Some("brew cleanup".to_string()),
                 });
@@ -81,7 +82,9 @@ impl HomebrewCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Downloaded cask application archives. Safe to delete.",
+                    description: Cow::Borrowed(
+                        "Downloaded cask application archives. Safe to delete.",
+                    ),
                     safe_to_delete: SafetyLevel::Safe,
                     clean_command: Some("brew cleanup --cask".to_string()),
                 });
@@ -103,7 +106,8 @@ impl HomebrewCleaner {
                 let path = entry.path();
 
                 // Skip subdirectories we handle separately
-                let name = path.file_name()
+                let name = path
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
 
@@ -112,7 +116,8 @@ impl HomebrewCleaner {
                 }
 
                 // Only look at files/directories that are cached packages
-                if path.is_file() && (name.ends_with(".tar.gz") || name.ends_with(".bottle.tar.gz")) {
+                if path.is_file() && (name.ends_with(".tar.gz") || name.ends_with(".bottle.tar.gz"))
+                {
                     let size = std::fs::metadata(&path)?.len();
                     if size > 10_000_000 {
                         items.push(CleanableItem {
@@ -124,7 +129,7 @@ impl HomebrewCleaner {
                             size,
                             file_count: Some(1),
                             last_modified: get_mtime(&entry.path()),
-                            description: "Cached package archive. Safe to delete.",
+                            description: Cow::Borrowed("Cached package archive. Safe to delete."),
                             safe_to_delete: SafetyLevel::Safe,
                             clean_command: Some("brew cleanup".to_string()),
                         });
@@ -187,7 +192,8 @@ impl HomebrewCleaner {
                     }
 
                     if total_size > 50_000_000 {
-                        let formula_name = formula_path.file_name()
+                        let formula_name = formula_path
+                            .file_name()
                             .map(|n| n.to_string_lossy().to_string())
                             .unwrap_or_default();
 
@@ -200,7 +206,9 @@ impl HomebrewCleaner {
                             size: total_size,
                             file_count: Some(total_files),
                             last_modified: None,
-                            description: "Old formula versions. Use 'brew cleanup' to remove.",
+                            description: Cow::Borrowed(
+                                "Old formula versions. Use 'brew cleanup' to remove.",
+                            ),
                             safe_to_delete: SafetyLevel::Safe,
                             clean_command: Some(format!("brew cleanup {}", formula_name)),
                         });
@@ -227,9 +235,10 @@ impl HomebrewCleaner {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(crate::error::DevSweepError::Other(
-                format!("brew cleanup failed: {}", stderr)
-            ));
+            return Err(crate::error::NullEError::Other(format!(
+                "brew cleanup failed: {}",
+                stderr
+            )));
         }
 
         // Estimate freed space (brew doesn't report exact bytes)

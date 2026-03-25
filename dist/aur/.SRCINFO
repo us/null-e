@@ -1,6 +1,6 @@
 pkgbase = null-e
 	pkgdesc = The friendly disk cleanup robot - send your cruft to /dev/null
-	pkgver = 0.1.0
+	pkgver = 0.2.0
 	pkgrel = 1
 	url = https://github.com/us/null-e
 	arch = x86_64
@@ -9,7 +9,7 @@ pkgbase = null-e
 	makedepends = rust
 	makedepends = cargo
 	depends = gcc-libs
-	source = null-e-0.1.0.tar.gz::https://github.com/us/null-e/archive/v0.1.0.tar.gz
+	source = null-e-0.2.0.tar.gz::https://github.com/us/null-e/archive/v0.2.0.tar.gz
 	sha256sums = SKIP
 
 pkgname = null-e

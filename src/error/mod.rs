@@ -1,4 +1,4 @@
-//! Error handling for DevSweep
+//! Error handling for null-e
 //!
 //! Provides a comprehensive error type hierarchy with context support
 //! and user-friendly error messages.
@@ -6,9 +6,9 @@
 use std::path::PathBuf;
 use thiserror::Error;
 
-/// Main error type for DevSweep operations
+/// Main error type for null-e operations
 #[derive(Error, Debug)]
-pub enum DevSweepError {
+pub enum NullEError {
     // ═══════════════════════════════════════════════════════════════
     // I/O Errors
     // ═══════════════════════════════════════════════════════════════
@@ -139,11 +139,11 @@ pub enum DevSweepError {
     WithContext {
         context: String,
         #[source]
-        source: Box<DevSweepError>,
+        source: Box<NullEError>,
     },
 }
 
-impl DevSweepError {
+impl NullEError {
     /// Create a plugin error with plugin name and message
     pub fn plugin(plugin: impl Into<String>, message: impl Into<String>) -> Self {
         Self::Plugin {
@@ -162,15 +162,15 @@ impl DevSweepError {
 
     /// Check if this error is recoverable (operation can continue)
     pub fn is_recoverable(&self) -> bool {
-        matches!(
-            self,
+        match self {
+            Self::WithContext { source, .. } => source.is_recoverable(),
             Self::PathNotFound(_)
-                | Self::PermissionDenied(_)
-                | Self::ScanInterrupted
-                | Self::DockerNotAvailable
-                | Self::NotAGitRepo(_)
-                | Self::Plugin { .. }
-        )
+            | Self::PermissionDenied(_)
+            | Self::DockerNotAvailable
+            | Self::NotAGitRepo(_)
+            | Self::Plugin { .. } => true,
+            _ => false,
+        }
     }
 
     /// Check if this error is a user-caused interruption
@@ -182,7 +182,9 @@ impl DevSweepError {
     pub fn suggested_action(&self) -> Option<&'static str> {
         match self {
             Self::PermissionDenied(_) => Some("Try running with elevated permissions (sudo)"),
-            Self::UncommittedChanges(_) => Some("Commit or stash your changes first, or use --force"),
+            Self::UncommittedChanges(_) => {
+                Some("Commit or stash your changes first, or use --force")
+            }
             Self::DockerNotAvailable => Some("Start Docker Desktop or the Docker daemon"),
             Self::RestoreFailed(_, _) => Some("Check the trash directory or restore manually"),
             Self::NotAGitRepo(_) => Some("Initialize a git repository or use --no-git-check"),
@@ -205,8 +207,8 @@ impl DevSweepError {
     }
 }
 
-/// Result type alias for DevSweep operations
-pub type Result<T> = std::result::Result<T, DevSweepError>;
+/// Result type alias for null-e operations
+pub type Result<T> = std::result::Result<T, NullEError>;
 
 /// Extension trait for adding context to Results
 pub trait ResultExt<T> {
@@ -217,7 +219,7 @@ pub trait ResultExt<T> {
     fn with_path(self, path: impl Into<PathBuf>) -> Result<T>;
 }
 
-impl<T, E: Into<DevSweepError>> ResultExt<T> for std::result::Result<T, E> {
+impl<T, E: Into<NullEError>> ResultExt<T> for std::result::Result<T, E> {
     fn context(self, context: impl Into<String>) -> Result<T> {
         self.map_err(|e| e.into().with_context(context))
     }
@@ -227,9 +229,9 @@ impl<T, E: Into<DevSweepError>> ResultExt<T> for std::result::Result<T, E> {
         self.map_err(|e| {
             let err = e.into();
             match &err {
-                DevSweepError::Io(io_err) => match io_err.kind() {
-                    std::io::ErrorKind::NotFound => DevSweepError::PathNotFound(path),
-                    std::io::ErrorKind::PermissionDenied => DevSweepError::PermissionDenied(path),
+                NullEError::Io(io_err) => match io_err.kind() {
+                    std::io::ErrorKind::NotFound => NullEError::PathNotFound(path),
+                    std::io::ErrorKind::PermissionDenied => NullEError::PermissionDenied(path),
                     _ => err,
                 },
                 _ => err,
@@ -246,7 +248,7 @@ pub trait OptionExt<T> {
 
 impl<T> OptionExt<T> for Option<T> {
     fn ok_or_err(self, msg: impl Into<String>) -> Result<T> {
-        self.ok_or_else(|| DevSweepError::Other(msg.into()))
+        self.ok_or_else(|| NullEError::Other(msg.into()))
     }
 }
 
@@ -256,28 +258,28 @@ mod tests {
 
     #[test]
     fn test_error_is_recoverable() {
-        assert!(DevSweepError::PathNotFound(PathBuf::from("/test")).is_recoverable());
-        assert!(DevSweepError::ScanInterrupted.is_recoverable());
-        assert!(!DevSweepError::Other("fatal".into()).is_recoverable());
+        assert!(NullEError::PathNotFound(PathBuf::from("/test")).is_recoverable());
+        assert!(!NullEError::ScanInterrupted.is_recoverable());
+        assert!(!NullEError::Other("fatal".into()).is_recoverable());
     }
 
     #[test]
     fn test_error_suggested_action() {
-        let err = DevSweepError::UncommittedChanges(PathBuf::from("/test"));
+        let err = NullEError::UncommittedChanges(PathBuf::from("/test"));
         assert!(err.suggested_action().is_some());
 
-        let err = DevSweepError::Other("generic".into());
+        let err = NullEError::Other("generic".into());
         assert!(err.suggested_action().is_none());
     }
 
     #[test]
     fn test_error_with_context() {
-        let err = DevSweepError::Io(std::io::Error::new(
+        let err = NullEError::Io(std::io::Error::new(
             std::io::ErrorKind::NotFound,
             "file not found",
         ));
         let with_ctx = err.with_context("reading config");
 
-        assert!(matches!(with_ctx, DevSweepError::WithContext { .. }));
+        assert!(matches!(with_ctx, NullEError::WithContext { .. }));
     }
 }

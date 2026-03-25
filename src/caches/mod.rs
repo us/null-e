@@ -3,7 +3,7 @@
 //! This module handles system-wide package manager caches like ~/.npm, ~/.cargo/registry, etc.
 //! These are separate from project-specific artifacts (node_modules, target).
 
-use crate::error::{DevSweepError, Result};
+use crate::error::{NullEError, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::SystemTime;
@@ -97,7 +97,11 @@ pub fn known_caches() -> Vec<CacheDefinition> {
             id: "pnpm",
             name: "pnpm store",
             icon: "📦",
-            paths: &[".pnpm-store", ".local/share/pnpm/store"],
+            paths: &[
+                ".pnpm-store",
+                ".local/share/pnpm/store",
+                "Library/pnpm/store",
+            ],
             clean_command: Some("pnpm store prune"),
             description: "Global pnpm content-addressable store",
         },
@@ -117,7 +121,14 @@ pub fn known_caches() -> Vec<CacheDefinition> {
             clean_command: Some("deno cache --reload"),
             description: "Cached Deno modules and compiled scripts",
         },
-
+        CacheDefinition {
+            id: "node-gyp",
+            name: "node-gyp cache",
+            icon: "🔧",
+            paths: &["Library/Caches/node-gyp", ".cache/node-gyp", ".node-gyp"],
+            clean_command: None,
+            description: "Cached node-gyp headers and build files",
+        },
         // ═══════════════════════════════════════════════════════════════
         // Python Ecosystem
         // ═══════════════════════════════════════════════════════════════
@@ -133,7 +144,7 @@ pub fn known_caches() -> Vec<CacheDefinition> {
             id: "uv",
             name: "uv cache",
             icon: "⚡",
-            paths: &[".cache/uv"],
+            paths: &[".cache/uv", "Library/Caches/uv"],
             clean_command: Some("uv cache clean"),
             description: "Cached uv packages (fast Python installer)",
         },
@@ -161,7 +172,6 @@ pub fn known_caches() -> Vec<CacheDefinition> {
             clean_command: Some("conda clean --all"),
             description: "Cached Conda packages",
         },
-
         // ═══════════════════════════════════════════════════════════════
         // Rust Ecosystem
         // ═══════════════════════════════════════════════════════════════
@@ -181,7 +191,6 @@ pub fn known_caches() -> Vec<CacheDefinition> {
             clean_command: None,
             description: "Git dependencies cache",
         },
-
         // ═══════════════════════════════════════════════════════════════
         // Go Ecosystem
         // ═══════════════════════════════════════════════════════════════
@@ -201,7 +210,6 @@ pub fn known_caches() -> Vec<CacheDefinition> {
             clean_command: Some("go clean -cache"),
             description: "Go build artifacts cache",
         },
-
         // ═══════════════════════════════════════════════════════════════
         // JVM Ecosystem
         // ═══════════════════════════════════════════════════════════════
@@ -229,7 +237,6 @@ pub fn known_caches() -> Vec<CacheDefinition> {
             clean_command: None,
             description: "SBT and Ivy dependency cache",
         },
-
         // ═══════════════════════════════════════════════════════════════
         // .NET Ecosystem
         // ═══════════════════════════════════════════════════════════════
@@ -241,7 +248,6 @@ pub fn known_caches() -> Vec<CacheDefinition> {
             clean_command: Some("dotnet nuget locals all --clear"),
             description: "NuGet package cache",
         },
-
         // ═══════════════════════════════════════════════════════════════
         // Ruby Ecosystem
         // ═══════════════════════════════════════════════════════════════
@@ -261,7 +267,6 @@ pub fn known_caches() -> Vec<CacheDefinition> {
             clean_command: Some("bundle clean --force"),
             description: "Bundler gem cache",
         },
-
         // ═══════════════════════════════════════════════════════════════
         // PHP Ecosystem
         // ═══════════════════════════════════════════════════════════════
@@ -273,7 +278,6 @@ pub fn known_caches() -> Vec<CacheDefinition> {
             clean_command: Some("composer clear-cache"),
             description: "Composer package cache",
         },
-
         // ═══════════════════════════════════════════════════════════════
         // Mobile Development
         // ═══════════════════════════════════════════════════════════════
@@ -301,7 +305,6 @@ pub fn known_caches() -> Vec<CacheDefinition> {
             clean_command: None,
             description: "Android build cache",
         },
-
         // ═══════════════════════════════════════════════════════════════
         // ML/AI Ecosystem
         // ═══════════════════════════════════════════════════════════════
@@ -321,7 +324,6 @@ pub fn known_caches() -> Vec<CacheDefinition> {
             clean_command: None,
             description: "PyTorch model hub cache",
         },
-
         // ═══════════════════════════════════════════════════════════════
         // Other Tools
         // ═══════════════════════════════════════════════════════════════
@@ -363,7 +365,7 @@ pub fn known_caches() -> Vec<CacheDefinition> {
 /// Detect all existing global caches
 pub fn detect_caches() -> Result<Vec<GlobalCache>> {
     let home = dirs::home_dir()
-        .ok_or_else(|| DevSweepError::Config("Could not find home directory".into()))?;
+        .ok_or_else(|| NullEError::Config("Could not find home directory".into()))?;
 
     let definitions = known_caches();
     let mut caches = Vec::new();
@@ -470,11 +472,15 @@ pub fn clean_cache(cache: &GlobalCache, use_official_command: bool) -> Result<Cl
         }
     }
 
-    // Manual deletion
+    // Manual deletion — delete_path returns actual bytes removed
     match crate::trash::delete_path(&cache.path, crate::trash::DeleteMethod::Permanent) {
-        Ok(_) => Ok(CleanResult {
+        Ok(bytes_removed) => Ok(CleanResult {
             success: true,
-            bytes_freed: size_before,
+            bytes_freed: if bytes_removed > 0 {
+                bytes_removed
+            } else {
+                size_before
+            },
             method: CleanMethod::ManualDelete,
         }),
         Err(e) => Err(e),
@@ -487,18 +493,18 @@ fn run_clean_command(cmd: &str) -> Result<()> {
 
     let parts: Vec<&str> = cmd.split_whitespace().collect();
     if parts.is_empty() {
-        return Err(DevSweepError::Config("Empty clean command".into()));
+        return Err(NullEError::Config("Empty clean command".into()));
     }
 
     let output = Command::new(parts[0])
         .args(&parts[1..])
         .output()
-        .map_err(|e| DevSweepError::Io(e))?;
+        .map_err(NullEError::Io)?;
 
     if output.status.success() {
         Ok(())
     } else {
-        Err(DevSweepError::CleanFailed {
+        Err(NullEError::CleanFailed {
             path: PathBuf::from(cmd),
             reason: String::from_utf8_lossy(&output.stderr).to_string(),
         })
@@ -555,7 +561,7 @@ mod tests {
 
     #[test]
     fn test_cache_age_display() {
-        let mut cache = GlobalCache {
+        let cache = GlobalCache {
             name: "test".into(),
             id: "test",
             icon: "📦",

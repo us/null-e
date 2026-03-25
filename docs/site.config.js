@@ -24,6 +24,7 @@ export default {
         { title: "Commands", slug: "commands" },
         { title: "TUI Mode", slug: "tui" },
         { title: "Targets & Plugins", slug: "targets" },
+        { title: "Detection Reference", slug: "detection-reference" },
       ],
     },
     {

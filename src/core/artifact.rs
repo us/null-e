@@ -116,8 +116,12 @@ impl ArtifactKind {
     /// Default safety level for this artifact type
     pub fn default_safety(&self) -> ArtifactSafety {
         match self {
-            Self::Cache | Self::Logs | Self::Temporary | Self::Bytecode => ArtifactSafety::AlwaysSafe,
-            Self::BuildOutput | Self::TestOutput | Self::DocsBuild => ArtifactSafety::SafeIfGitClean,
+            Self::Cache | Self::Logs | Self::Temporary | Self::Bytecode => {
+                ArtifactSafety::AlwaysSafe
+            }
+            Self::BuildOutput | Self::TestOutput | Self::DocsBuild => {
+                ArtifactSafety::SafeIfGitClean
+            }
             Self::Dependencies | Self::PackageManagerCache => ArtifactSafety::SafeWithLockfile,
             Self::VirtualEnv => ArtifactSafety::RequiresConfirmation,
             Self::IdeArtifacts => ArtifactSafety::RequiresConfirmation,

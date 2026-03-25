@@ -182,7 +182,11 @@ impl ProjectKind {
             Self::Zig => "⚡",
             Self::JavaMaven | Self::JavaGradle | Self::Kotlin | Self::Scala | Self::Clojure => "☕",
             Self::DotNet | Self::FSharp => "🔷",
-            Self::PythonPip | Self::PythonPoetry | Self::PythonPipenv | Self::PythonConda | Self::PythonUv => "🐍",
+            Self::PythonPip
+            | Self::PythonPoetry
+            | Self::PythonPipenv
+            | Self::PythonConda
+            | Self::PythonUv => "🐍",
             Self::RubyBundler | Self::RubyRails => "💎",
             Self::PhpComposer | Self::PhpLaravel => "🐘",
             Self::SwiftSpm | Self::SwiftXcode => "🍎",
@@ -281,16 +285,46 @@ impl MarkerKind {
     /// Check if this marker matches at the given path
     pub fn matches(&self, path: &Path) -> bool {
         match self {
-            Self::File(name) => path.join(name).is_file(),
+            Self::File(name) => Self::file_exists(path, name),
             Self::Directory(name) => path.join(name).is_dir(),
-            Self::Extension(ext) => {
-                path.extension()
-                    .map(|e| e.to_string_lossy().as_ref() == *ext)
-                    .unwrap_or(false)
-            }
-            Self::AllOf(files) => files.iter().all(|f| path.join(f).exists()),
-            Self::AnyOf(files) => files.iter().any(|f| path.join(f).exists()),
+            Self::Extension(ext) => Self::has_child_with_extension(path, ext),
+            Self::AllOf(files) => files.iter().all(|f| Self::file_exists(path, f)),
+            Self::AnyOf(files) => files.iter().any(|f| Self::file_exists(path, f)),
         }
+    }
+
+    /// Check if a file matching `name` exists under `dir`.
+    /// Supports simple glob patterns like `*.sln` — if the name starts
+    /// with `*`, it scans `dir` for any file whose name ends with the
+    /// suffix after `*`.
+    fn file_exists(dir: &Path, name: &str) -> bool {
+        if let Some(suffix) = name.strip_prefix('*') {
+            let Ok(entries) = std::fs::read_dir(dir) else {
+                return false;
+            };
+            entries.filter_map(Result::ok).any(|entry| {
+                let file_name = entry.file_name();
+                let s = file_name.to_string_lossy();
+                s.ends_with(suffix) && entry.path().is_file()
+            })
+        } else {
+            dir.join(name).is_file()
+        }
+    }
+
+    /// Check if `dir` contains any child entry whose extension matches `ext`.
+    fn has_child_with_extension(dir: &Path, ext: &str) -> bool {
+        let Ok(entries) = std::fs::read_dir(dir) else {
+            return false;
+        };
+        entries.filter_map(Result::ok).any(|entry| {
+            entry.file_type().map(|t| t.is_file()).unwrap_or(false)
+                && entry
+                    .path()
+                    .extension()
+                    .map(|e| e.to_string_lossy().as_ref() == ext)
+                    .unwrap_or(false)
+        })
     }
 }
 

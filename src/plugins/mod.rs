@@ -1,24 +1,24 @@
-//! Plugin system for DevSweep
+//! Plugin system for null-e
 //!
 //! Each plugin handles detection and artifact discovery for a specific
 //! language/framework ecosystem.
 
-mod registry;
-mod node;
-mod rust;
-mod python;
+mod dotnet;
 mod go;
 mod java;
-mod dotnet;
+mod node;
+mod python;
+mod registry;
+mod rust;
 mod swift;
 
-pub use registry::*;
-pub use node::NodePlugin;
-pub use rust::RustPlugin;
-pub use python::PythonPlugin;
-pub use go::GoPlugin;
-pub use java::{MavenPlugin, GradlePlugin};
 pub use dotnet::DotNetPlugin;
+pub use go::GoPlugin;
+pub use java::{GradlePlugin, MavenPlugin};
+pub use node::NodePlugin;
+pub use python::PythonPlugin;
+pub use registry::*;
+pub use rust::RustPlugin;
 pub use swift::SwiftPlugin;
 
 use crate::core::{Artifact, ProjectKind, ProjectMarker};

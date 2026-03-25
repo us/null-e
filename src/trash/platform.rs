@@ -1,15 +1,14 @@
 //! Platform-specific trash implementation
 
-use crate::error::{DevSweepError, Result};
+use crate::error::{NullEError, Result};
 use std::path::PathBuf;
 
 /// Get the trash directory for the current platform
 pub fn get_trash_dir() -> Result<PathBuf> {
     #[cfg(target_os = "macos")]
     {
-        let home = dirs::home_dir().ok_or_else(|| {
-            DevSweepError::Trash("Cannot determine home directory".into())
-        })?;
+        let home = dirs::home_dir()
+            .ok_or_else(|| NullEError::Trash("Cannot determine home directory".into()))?;
         Ok(home.join(".Trash"))
     }
 
@@ -20,9 +19,8 @@ pub fn get_trash_dir() -> Result<PathBuf> {
             return Ok(data_home.join("Trash/files"));
         }
 
-        let home = dirs::home_dir().ok_or_else(|| {
-            DevSweepError::Trash("Cannot determine home directory".into())
-        })?;
+        let home = dirs::home_dir()
+            .ok_or_else(|| NullEError::Trash("Cannot determine home directory".into()))?;
         Ok(home.join(".local/share/Trash/files"))
     }
 
@@ -30,14 +28,14 @@ pub fn get_trash_dir() -> Result<PathBuf> {
     {
         // Windows Recycle Bin is not directly accessible as a path
         // The trash crate handles this correctly
-        Err(DevSweepError::Trash(
+        Err(NullEError::Trash(
             "Direct trash path access not supported on Windows".into(),
         ))
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
     {
-        Err(DevSweepError::Trash("Unsupported platform".into()))
+        Err(NullEError::Trash("Unsupported platform".into()))
     }
 }
 
@@ -56,12 +54,10 @@ pub fn get_trash_size() -> Result<u64> {
     }
 
     let mut size = 0u64;
-    for entry in walkdir::WalkDir::new(&trash_dir) {
-        if let Ok(entry) = entry {
-            if entry.file_type().is_file() {
-                if let Ok(meta) = entry.metadata() {
-                    size += meta.len();
-                }
+    for entry in walkdir::WalkDir::new(&trash_dir).into_iter().flatten() {
+        if entry.file_type().is_file() {
+            if let Ok(meta) = entry.metadata() {
+                size += meta.len();
             }
         }
     }

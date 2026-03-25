@@ -23,8 +23,21 @@ use std::io;
 use std::path::PathBuf;
 use std::time::Duration;
 
+/// Restore terminal to normal mode (used by both normal exit and panic hook)
+fn restore_terminal() {
+    let _ = disable_raw_mode();
+    let _ = execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
+}
+
 /// Run the TUI application
 pub fn run(paths: Vec<PathBuf>) -> Result<()> {
+    // Install panic hook to restore terminal on panic
+    let original_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        restore_terminal();
+        original_hook(panic_info);
+    }));
+
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -64,7 +77,9 @@ fn run_app(
         terminal.draw(|frame| ui::render(app, frame))?;
 
         // Handle events
-        let event = events.next().map_err(|e| crate::error::DevSweepError::Other(e.to_string()))?;
+        let event = events
+            .next()
+            .map_err(|e| crate::error::NullEError::Other(e.to_string()))?;
         match event {
             Event::Key(key) => {
                 // Handle search mode separately
@@ -123,7 +138,10 @@ fn run_app(
                         Action::Help => app.toggle_help(),
                         _ => {}
                     },
-                    AppState::Results | AppState::CacheResults | AppState::CleanerResults | AppState::Error(_) => match action {
+                    AppState::Results
+                    | AppState::CacheResults
+                    | AppState::CleanerResults
+                    | AppState::Error(_) => match action {
                         Action::Quit => {
                             app.should_quit = true;
                         }
@@ -167,8 +185,11 @@ fn run_app(
                         // Allow quit during cleaning
                         if matches!(action, Action::Quit | Action::Cancel) {
                             app.pending_delete_items.clear();
-                            app.state = AppState::Results;
+                            app.cancel_delete();
                             app.status_message = Some("Cleaning cancelled".to_string());
+                            if matches!(action, Action::Quit) {
+                                app.should_quit = true;
+                            }
                         }
                     }
                 }
@@ -292,10 +313,10 @@ fn run_clean_command(cmd: &str) -> crate::error::Result<()> {
 
     match output {
         Ok(out) if out.status.success() => Ok(()),
-        Ok(out) => Err(crate::error::DevSweepError::Other(
+        Ok(out) => Err(crate::error::NullEError::Other(
             String::from_utf8_lossy(&out.stderr).to_string(),
         )),
-        Err(e) => Err(crate::error::DevSweepError::Other(e.to_string())),
+        Err(e) => Err(crate::error::NullEError::Other(e.to_string())),
     }
 }
 

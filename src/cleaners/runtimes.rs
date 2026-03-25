@@ -10,7 +10,8 @@
 
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
 use crate::error::Result;
-use std::path::PathBuf;
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::SystemTime;
 
@@ -69,18 +70,22 @@ impl RuntimesCleaner {
     }
 
     /// Get description based on safety level
-    fn get_description(&self, is_active: bool, last_modified: Option<SystemTime>) -> &'static str {
+    fn get_description(
+        &self,
+        is_active: bool,
+        last_modified: Option<SystemTime>,
+    ) -> Cow<'static, str> {
         if is_active {
-            "ACTIVE VERSION - Currently in use"
+            Cow::Borrowed("ACTIVE VERSION - Currently in use")
         } else {
             let age_days = last_modified
                 .and_then(|t| t.elapsed().ok())
                 .map(|d| d.as_secs() / 86400);
 
             match age_days {
-                Some(d) if d < 30 => "Recently used. Delete with caution",
-                Some(_) => "Old version. Safe to delete",
-                None => "Unknown age. Can be reinstalled if needed",
+                Some(d) if d < 30 => Cow::Borrowed("Recently used. Delete with caution"),
+                Some(_) => Cow::Borrowed("Old version. Safe to delete"),
+                None => Cow::Borrowed("Unknown age. Can be reinstalled if needed"),
             }
         }
     }
@@ -166,7 +171,7 @@ impl RuntimesCleaner {
     }
 
     /// Detect nvm active version
-    fn detect_nvm_active(&self, nvm_dir: &PathBuf) -> Option<String> {
+    fn detect_nvm_active(&self, nvm_dir: &Path) -> Option<String> {
         let default_alias = nvm_dir.join("alias/default");
         if default_alias.exists() {
             if let Ok(content) = std::fs::read_to_string(&default_alias) {
@@ -185,7 +190,9 @@ impl RuntimesCleaner {
 
         // fnm paths vary by OS
         #[cfg(target_os = "macos")]
-        let fnm_path = self.home.join("Library/Application Support/fnm/node-versions");
+        let fnm_path = self
+            .home
+            .join("Library/Application Support/fnm/node-versions");
         #[cfg(target_os = "linux")]
         let fnm_path = self.home.join(".local/share/fnm/node-versions");
         #[cfg(target_os = "windows")]
@@ -494,7 +501,7 @@ impl RuntimesCleaner {
     }
 
     /// Detect pyenv active version from version file
-    fn detect_pyenv_active(&self, pyenv_root: &PathBuf) -> Option<String> {
+    fn detect_pyenv_active(&self, pyenv_root: &Path) -> Option<String> {
         let version_file = pyenv_root.join("version");
         if version_file.exists() {
             if let Ok(content) = std::fs::read_to_string(&version_file) {
@@ -555,10 +562,7 @@ impl RuntimesCleaner {
                     }
 
                     let last_modified = get_mtime(&path);
-                    let is_active = active_env
-                        .as_ref()
-                        .map(|v| env_name == *v)
-                        .unwrap_or(false);
+                    let is_active = active_env.as_ref().map(|v| env_name == *v).unwrap_or(false);
 
                     items.push(CleanableItem {
                         name: format!("Conda env: {}", env_name),
@@ -624,7 +628,9 @@ impl RuntimesCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Conda package cache. Safe to clean, packages will be re-downloaded.",
+                description: Cow::Borrowed(
+                    "Conda package cache. Safe to clean, packages will be re-downloaded.",
+                ),
                 safe_to_delete: SafetyLevel::Safe,
                 clean_command: Some("conda clean --all -y".to_string()),
             });
@@ -707,7 +713,7 @@ impl RuntimesCleaner {
     }
 
     /// Detect rbenv active version
-    fn detect_rbenv_active(&self, rbenv_root: &PathBuf) -> Option<String> {
+    fn detect_rbenv_active(&self, rbenv_root: &Path) -> Option<String> {
         let version_file = rbenv_root.join("version");
         if version_file.exists() {
             if let Ok(content) = std::fs::read_to_string(&version_file) {
@@ -785,12 +791,7 @@ impl RuntimesCleaner {
         if default_file.exists() {
             if let Ok(content) = std::fs::read_to_string(&default_file) {
                 // File format: ruby-version@gemset or just ruby-version
-                let version = content
-                    .trim()
-                    .split('@')
-                    .next()
-                    .unwrap_or("")
-                    .to_string();
+                let version = content.trim().split('@').next().unwrap_or("").to_string();
                 if !version.is_empty() {
                     return Some(version);
                 }
@@ -841,10 +842,7 @@ impl RuntimesCleaner {
                 }
 
                 let last_modified = get_mtime(&path);
-                let is_active = active_version
-                    .as_ref()
-                    .map(|v| name == *v)
-                    .unwrap_or(false);
+                let is_active = active_version.as_ref().map(|v| name == *v).unwrap_or(false);
 
                 items.push(CleanableItem {
                     name: format!("Java {} (sdkman)", name),
@@ -866,13 +864,11 @@ impl RuntimesCleaner {
     }
 
     /// Detect sdkman active version via current symlink
-    fn detect_sdkman_active(&self, java_path: &PathBuf) -> Option<String> {
+    fn detect_sdkman_active(&self, java_path: &Path) -> Option<String> {
         let current_link = java_path.join("current");
         if current_link.exists() {
             if let Ok(target) = std::fs::read_link(&current_link) {
-                return target
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string());
+                return target.file_name().map(|n| n.to_string_lossy().to_string());
             }
         }
         None
@@ -1084,7 +1080,7 @@ impl RuntimesCleaner {
                 let last_modified = get_mtime(&path);
                 let is_active = active_version
                     .as_ref()
-                    .map(|v| name.contains(v) || v.contains(&name.trim_start_matches("go")))
+                    .map(|v| name.contains(v) || v.contains(name.trim_start_matches("go")))
                     .unwrap_or(false);
 
                 items.push(CleanableItem {
@@ -1162,10 +1158,7 @@ mod tests {
         let cleaner = RuntimesCleaner::new().unwrap();
 
         // Active version should be dangerous
-        assert_eq!(
-            cleaner.determine_safety(true, None),
-            SafetyLevel::Dangerous
-        );
+        assert_eq!(cleaner.determine_safety(true, None), SafetyLevel::Dangerous);
 
         // Old version should be safe
         let old_time = SystemTime::now() - std::time::Duration::from_secs(60 * 86400); // 60 days

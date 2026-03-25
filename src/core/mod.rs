@@ -1,16 +1,16 @@
-//! Core types and traits for DevSweep
+//! Core types and traits for null-e
 //!
 //! This module contains the fundamental abstractions used throughout the application:
 //! - Project detection and representation
 //! - Artifact types and metadata
 //! - Scanner and cleaner traits
 
-mod project;
 mod artifact;
-mod scanner;
 mod cleaner;
+mod project;
+mod scanner;
 
-pub use project::*;
 pub use artifact::*;
-pub use scanner::*;
 pub use cleaner::*;
+pub use project::*;
+pub use scanner::*;

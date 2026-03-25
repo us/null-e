@@ -1,6 +1,8 @@
 //! Python plugin (pip, poetry, pipenv, conda, uv)
 
-use crate::core::{Artifact, ArtifactKind, ArtifactMetadata, MarkerKind, ProjectKind, ProjectMarker};
+use crate::core::{
+    Artifact, ArtifactKind, ArtifactMetadata, MarkerKind, ProjectKind, ProjectMarker,
+};
 use crate::error::Result;
 use crate::plugins::Plugin;
 use std::path::{Path, PathBuf};
@@ -287,12 +289,7 @@ impl PythonPlugin {
     }
 
     fn find_lockfile(&self, path: &Path) -> Option<PathBuf> {
-        let candidates = [
-            "uv.lock",
-            "poetry.lock",
-            "Pipfile.lock",
-            "requirements.txt",
-        ];
+        let candidates = ["uv.lock", "poetry.lock", "Pipfile.lock", "requirements.txt"];
 
         candidates.iter().map(|f| path.join(f)).find(|p| p.exists())
     }
@@ -353,11 +350,9 @@ fn is_venv(path: &Path) -> bool {
     }
 
     // Check for bin/python or Scripts/python.exe
-    let has_python = path.join("bin/python").exists()
+    path.join("bin/python").exists()
         || path.join("bin/python3").exists()
-        || path.join("Scripts/python.exe").exists();
-
-    has_python
+        || path.join("Scripts/python.exe").exists()
 }
 
 #[cfg(test)]

@@ -10,6 +10,7 @@
 
 use super::{calculate_dir_size, CleanableItem, SafetyLevel};
 use crate::error::Result;
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 /// Cloud CLI cleaner
@@ -82,7 +83,9 @@ impl CloudCliCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "AWS CLI credential and API response cache. Safe to delete.",
+                description: Cow::Borrowed(
+                    "AWS CLI credential and API response cache. Safe to delete.",
+                ),
                 safe_to_delete: safety,
                 clean_command: None,
             });
@@ -102,7 +105,9 @@ impl CloudCliCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "AWS SAM build cache. Will be rebuilt on next sam build.",
+                    description: Cow::Borrowed(
+                        "AWS SAM build cache. Will be rebuilt on next sam build.",
+                    ),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: None,
                 });
@@ -119,7 +124,11 @@ impl CloudCliCleaner {
         let gcloud_paths = [
             (".config/gcloud/logs", "gcloud Logs", SafetyLevel::Safe),
             (".config/gcloud/cache", "gcloud Cache", SafetyLevel::Safe),
-            (".config/gcloud/application_default_credentials_cache", "gcloud ADC Cache", SafetyLevel::Safe),
+            (
+                ".config/gcloud/application_default_credentials_cache",
+                "gcloud ADC Cache",
+                SafetyLevel::Safe,
+            ),
         ];
 
         for (rel_path, name, safety) in gcloud_paths {
@@ -142,7 +151,7 @@ impl CloudCliCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Google Cloud SDK cache and logs. Safe to delete.",
+                description: Cow::Borrowed("Google Cloud SDK cache and logs. Safe to delete."),
                 safe_to_delete: safety,
                 clean_command: None,
             });
@@ -163,7 +172,9 @@ impl CloudCliCleaner {
                     size,
                     file_count: None,
                     last_modified: None,
-                    description: "Google Cloud SDK directory. Contains config - clean subdirs only.",
+                    description: Cow::Borrowed(
+                        "Google Cloud SDK directory. Contains config - clean subdirs only.",
+                    ),
                     safe_to_delete: SafetyLevel::Caution,
                     clean_command: Some("gcloud components cleanup --unused".to_string()),
                 });
@@ -179,8 +190,16 @@ impl CloudCliCleaner {
 
         let azure_paths = [
             (".azure/logs", "Azure CLI Logs", SafetyLevel::Safe),
-            (".azure/cliextensions", "Azure CLI Extensions Cache", SafetyLevel::SafeWithCost),
-            (".azure/commands", "Azure CLI Commands Cache", SafetyLevel::Safe),
+            (
+                ".azure/cliextensions",
+                "Azure CLI Extensions Cache",
+                SafetyLevel::SafeWithCost,
+            ),
+            (
+                ".azure/commands",
+                "Azure CLI Commands Cache",
+                SafetyLevel::Safe,
+            ),
         ];
 
         for (rel_path, name, safety) in azure_paths {
@@ -203,7 +222,7 @@ impl CloudCliCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Azure CLI cache and logs.",
+                description: Cow::Borrowed("Azure CLI cache and logs."),
                 safe_to_delete: safety,
                 clean_command: Some("az cache purge".to_string()),
             });
@@ -241,7 +260,7 @@ impl CloudCliCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Kubernetes API discovery cache. Safe to delete.",
+                description: Cow::Borrowed("Kubernetes API discovery cache. Safe to delete."),
                 safe_to_delete: safety,
                 clean_command: None,
             });
@@ -261,7 +280,9 @@ impl CloudCliCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Minikube ISO and preload images. Can be re-downloaded.",
+                    description: Cow::Borrowed(
+                        "Minikube ISO and preload images. Can be re-downloaded.",
+                    ),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: Some("minikube delete --purge".to_string()),
                 });
@@ -282,7 +303,7 @@ impl CloudCliCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Kind (Kubernetes in Docker) cache.",
+                    description: Cow::Borrowed("Kind (Kubernetes in Docker) cache."),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: None,
                 });
@@ -310,7 +331,9 @@ impl CloudCliCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Terraform provider plugins cache. Will be re-downloaded.",
+                    description: Cow::Borrowed(
+                        "Terraform provider plugins cache. Will be re-downloaded.",
+                    ),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: None,
                 });
@@ -331,7 +354,7 @@ impl CloudCliCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Terraform/OpenTofu plugins and credentials cache.",
+                    description: Cow::Borrowed("Terraform/OpenTofu plugins and credentials cache."),
                     safe_to_delete: SafetyLevel::Caution,
                     clean_command: None,
                 });
@@ -364,7 +387,7 @@ impl CloudCliCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Pulumi provider plugins. Can be re-downloaded.",
+                    description: Cow::Borrowed("Pulumi provider plugins. Can be re-downloaded."),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: Some("pulumi plugin rm --all".to_string()),
                 });
@@ -403,7 +426,7 @@ impl CloudCliCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Helm chart cache. Will be re-downloaded.",
+                description: Cow::Borrowed("Helm chart cache. Will be re-downloaded."),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: None,
             });

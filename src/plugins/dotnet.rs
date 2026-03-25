@@ -1,6 +1,8 @@
 //! .NET plugin
 
-use crate::core::{Artifact, ArtifactKind, ArtifactMetadata, MarkerKind, ProjectKind, ProjectMarker};
+use crate::core::{
+    Artifact, ArtifactKind, ArtifactMetadata, MarkerKind, ProjectKind, ProjectMarker,
+};
 use crate::error::Result;
 use crate::plugins::Plugin;
 use std::path::Path;

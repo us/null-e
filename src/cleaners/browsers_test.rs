@@ -8,6 +8,7 @@
 
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
 use crate::error::Result;
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 /// Testing browsers cleaner
@@ -73,7 +74,8 @@ impl TestBrowsersCleaner {
                         continue;
                     }
 
-                    let name = path.file_name()
+                    let name = path
+                        .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_else(|| "Unknown".to_string());
 
@@ -89,7 +91,8 @@ impl TestBrowsersCleaner {
                     };
 
                     let (size, file_count) = calculate_dir_size(&path)?;
-                    if size < 50_000_000 { // Skip small
+                    if size < 50_000_000 {
+                        // Skip small
                         continue;
                     }
 
@@ -102,7 +105,9 @@ impl TestBrowsersCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: get_mtime(&entry.path()),
-                        description: "Browser binary for Playwright testing. Will be re-downloaded.",
+                        description: Cow::Borrowed(
+                            "Browser binary for Playwright testing. Will be re-downloaded.",
+                        ),
                         safe_to_delete: SafetyLevel::SafeWithCost,
                         clean_command: Some("npx playwright install --clean".to_string()),
                     });
@@ -140,12 +145,14 @@ impl TestBrowsersCleaner {
                         continue;
                     }
 
-                    let version = path.file_name()
+                    let version = path
+                        .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_else(|| "Unknown".to_string());
 
                     let (size, file_count) = calculate_dir_size(&path)?;
-                    if size < 100_000_000 { // Cypress is usually 400MB+
+                    if size < 100_000_000 {
+                        // Cypress is usually 400MB+
                         continue;
                     }
 
@@ -158,7 +165,9 @@ impl TestBrowsersCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: get_mtime(&entry.path()),
-                        description: "Cypress test runner. Will be re-downloaded when needed.",
+                        description: Cow::Borrowed(
+                            "Cypress test runner. Will be re-downloaded when needed.",
+                        ),
                         safe_to_delete: SafetyLevel::SafeWithCost,
                         clean_command: Some("npx cypress cache clear".to_string()),
                     });
@@ -202,7 +211,9 @@ impl TestBrowsersCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Puppeteer Chrome/Chromium binary. Will be re-downloaded.",
+                description: Cow::Borrowed(
+                    "Puppeteer Chrome/Chromium binary. Will be re-downloaded.",
+                ),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: None,
             });
@@ -244,7 +255,7 @@ impl TestBrowsersCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Selenium browser drivers. Will be re-downloaded.",
+                description: Cow::Borrowed("Selenium browser drivers. Will be re-downloaded."),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: None,
             });
@@ -282,7 +293,7 @@ impl TestBrowsersCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Chrome for Testing binaries. Will be re-downloaded.",
+                description: Cow::Borrowed("Chrome for Testing binaries. Will be re-downloaded."),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: None,
             });

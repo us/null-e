@@ -1,6 +1,6 @@
 # Maintainer: us <rahmetsaritekin@gmail.com>
 pkgname=null-e
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
 pkgdesc="The friendly disk cleanup robot - send your cruft to /dev/null"
 arch=('x86_64' 'aarch64')

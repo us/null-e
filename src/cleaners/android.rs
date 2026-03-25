@@ -8,6 +8,7 @@
 
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
 use crate::error::Result;
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 /// Android cleaner
@@ -60,7 +61,8 @@ impl AndroidCleaner {
 
                 // AVD directories end with .avd
                 if path.is_dir() && path.extension().map(|e| e == "avd").unwrap_or(false) {
-                    let name = path.file_stem()
+                    let name = path
+                        .file_stem()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_else(|| "Unknown".to_string());
 
@@ -78,7 +80,7 @@ impl AndroidCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: get_mtime(&entry.path()),
-                        description: "Android Virtual Device with user data.",
+                        description: Cow::Borrowed("Android Virtual Device with user data."),
                         safe_to_delete: SafetyLevel::Caution,
                         clean_command: Some(format!("avdmanager delete avd -n {}", name)),
                     });
@@ -93,9 +95,9 @@ impl AndroidCleaner {
     fn detect_system_images(&self) -> Result<Vec<CleanableItem>> {
         // Try common SDK locations
         let sdk_paths = [
-            self.home.join("Library/Android/sdk"),  // macOS default
-            self.home.join("Android/Sdk"),          // Linux default
-            self.home.join(".android/sdk"),         // Alternative
+            self.home.join("Library/Android/sdk"), // macOS default
+            self.home.join("Android/Sdk"),         // Linux default
+            self.home.join(".android/sdk"),        // Alternative
         ];
 
         let mut items = Vec::new();
@@ -114,7 +116,8 @@ impl AndroidCleaner {
                         continue;
                     }
 
-                    let version_name = version_path.file_name()
+                    let version_name = version_path
+                        .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_default();
 
@@ -125,7 +128,8 @@ impl AndroidCleaner {
                                 continue;
                             }
 
-                            let variant_name = variant_path.file_name()
+                            let variant_name = variant_path
+                                .file_name()
                                 .map(|n| n.to_string_lossy().to_string())
                                 .unwrap_or_default();
 
@@ -143,7 +147,7 @@ impl AndroidCleaner {
                                 size,
                                 file_count: Some(file_count),
                                 last_modified: get_mtime(&variant.path()),
-                                description: "Android system image for emulator.",
+                                description: Cow::Borrowed("Android system image for emulator."),
                                 safe_to_delete: SafetyLevel::SafeWithCost,
                                 clean_command: Some("sdkmanager --uninstall".to_string()),
                             });
@@ -188,7 +192,7 @@ impl AndroidCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Gradle build cache. Will be rebuilt on next build.",
+                description: Cow::Borrowed("Gradle build cache. Will be rebuilt on next build."),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: None,
             });
@@ -233,7 +237,7 @@ impl AndroidCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Android build cache files.",
+                description: Cow::Borrowed("Android build cache files."),
                 safe_to_delete: SafetyLevel::Safe,
                 clean_command: None,
             });
@@ -262,7 +266,10 @@ impl AndroidCleaner {
                             }
 
                             items.push(CleanableItem {
-                                name: format!("Android Studio Cache: {}", name.replace("Google.", "")),
+                                name: format!(
+                                    "Android Studio Cache: {}",
+                                    name.replace("Google.", "")
+                                ),
                                 category: "Android".to_string(),
                                 subcategory: "IDE Cache".to_string(),
                                 icon: "💻",
@@ -270,7 +277,7 @@ impl AndroidCleaner {
                                 size,
                                 file_count: Some(file_count),
                                 last_modified: get_mtime(&entry.path()),
-                                description: "Android Studio IDE cache.",
+                                description: Cow::Borrowed("Android Studio IDE cache."),
                                 safe_to_delete: SafetyLevel::Safe,
                                 clean_command: None,
                             });
@@ -294,7 +301,10 @@ impl AndroidCleaner {
                             }
 
                             items.push(CleanableItem {
-                                name: format!("Android Studio Data: {}", name.replace("Google/", "")),
+                                name: format!(
+                                    "Android Studio Data: {}",
+                                    name.replace("Google/", "")
+                                ),
                                 category: "Android".to_string(),
                                 subcategory: "IDE Data".to_string(),
                                 icon: "💻",
@@ -302,7 +312,7 @@ impl AndroidCleaner {
                                 size,
                                 file_count: Some(file_count),
                                 last_modified: get_mtime(&entry.path()),
-                                description: "Android Studio settings and plugins.",
+                                description: Cow::Borrowed("Android Studio settings and plugins."),
                                 safe_to_delete: SafetyLevel::Caution,
                                 clean_command: None,
                             });
@@ -336,7 +346,7 @@ impl AndroidCleaner {
                                 size,
                                 file_count: Some(file_count),
                                 last_modified: get_mtime(&entry.path()),
-                                description: "Android Studio configuration.",
+                                description: Cow::Borrowed("Android Studio configuration."),
                                 safe_to_delete: SafetyLevel::Caution,
                                 clean_command: None,
                             });

@@ -9,6 +9,7 @@
 
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
 use crate::error::Result;
+use std::borrow::Cow;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 
@@ -53,9 +54,7 @@ impl SystemCleaner {
 
         // Trash locations per OS
         #[cfg(target_os = "macos")]
-        let trash_paths = vec![
-            self.home.join(".Trash"),
-        ];
+        let trash_paths = vec![self.home.join(".Trash")];
 
         #[cfg(target_os = "linux")]
         let trash_paths = vec![
@@ -98,7 +97,7 @@ impl SystemCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Files in trash. Permanently deleted when cleaned.",
+                description: Cow::Borrowed("Files in trash. Permanently deleted when cleaned."),
                 safe_to_delete: SafetyLevel::Caution,
                 #[cfg(target_os = "macos")]
                 clean_command: Some("rm -rf ~/.Trash/*".to_string()),
@@ -118,8 +117,7 @@ impl SystemCleaner {
     fn detect_downloads(&self) -> Result<Vec<CleanableItem>> {
         let mut items = Vec::new();
 
-        let downloads = dirs::download_dir()
-            .unwrap_or_else(|| self.home.join("Downloads"));
+        let downloads = dirs::download_dir().unwrap_or_else(|| self.home.join("Downloads"));
 
         if !downloads.exists() {
             return Ok(items);
@@ -127,8 +125,8 @@ impl SystemCleaner {
 
         // Archive extensions to look for
         let archive_extensions = [
-            "zip", "tar", "tar.gz", "tgz", "tar.bz2", "tar.xz", "7z", "rar",
-            "dmg", "iso", "pkg", "deb", "rpm", "msi", "exe",
+            "zip", "tar", "tar.gz", "tgz", "tar.bz2", "tar.xz", "7z", "rar", "dmg", "iso", "pkg",
+            "deb", "rpm", "msi", "exe",
         ];
 
         // Threshold: files older than 30 days
@@ -147,16 +145,17 @@ impl SystemCleaner {
                 }
 
                 // Check extension
-                let ext = path.extension()
+                let ext = path
+                    .extension()
                     .and_then(|e| e.to_str())
                     .unwrap_or("")
                     .to_lowercase();
 
                 // Handle .tar.* extensions
-                let is_archive = archive_extensions.contains(&ext.as_str()) ||
-                    path.to_string_lossy().ends_with(".tar.gz") ||
-                    path.to_string_lossy().ends_with(".tar.bz2") ||
-                    path.to_string_lossy().ends_with(".tar.xz");
+                let is_archive = archive_extensions.contains(&ext.as_str())
+                    || path.to_string_lossy().ends_with(".tar.gz")
+                    || path.to_string_lossy().ends_with(".tar.bz2")
+                    || path.to_string_lossy().ends_with(".tar.xz");
 
                 if !is_archive {
                     continue;
@@ -177,7 +176,8 @@ impl SystemCleaner {
             }
         }
 
-        if total_size > 100_000_000 && file_count > 0 { // 100MB minimum
+        if total_size > 100_000_000 && file_count > 0 {
+            // 100MB minimum
             items.push(CleanableItem {
                 name: format!("Old Downloads ({} files)", file_count),
                 category: "System".to_string(),
@@ -187,7 +187,7 @@ impl SystemCleaner {
                 size: total_size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Archive files older than 30 days in Downloads folder.",
+                description: Cow::Borrowed("Archive files older than 30 days in Downloads folder."),
                 safe_to_delete: SafetyLevel::Caution,
                 clean_command: None,
             });
@@ -215,10 +215,7 @@ impl SystemCleaner {
         ];
 
         #[cfg(target_os = "windows")]
-        let temp_paths = vec![
-            std::env::temp_dir(),
-            self.home.join("AppData/Local/Temp"),
-        ];
+        let temp_paths = vec![std::env::temp_dir(), self.home.join("AppData/Local/Temp")];
 
         #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
         let temp_paths: Vec<PathBuf> = vec![];
@@ -234,7 +231,8 @@ impl SystemCleaner {
             }
 
             let (size, file_count) = calculate_dir_size(&temp_path)?;
-            if size < 500_000_000 { // 500MB minimum for temp
+            if size < 500_000_000 {
+                // 500MB minimum for temp
                 continue;
             }
 
@@ -245,9 +243,13 @@ impl SystemCleaner {
             }
 
             items.push(CleanableItem {
-                name: format!("Temp Files ({})", temp_path.file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "tmp".to_string())),
+                name: format!(
+                    "Temp Files ({})",
+                    temp_path
+                        .file_name()
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "tmp".to_string())
+                ),
                 category: "System".to_string(),
                 subcategory: "Temp".to_string(),
                 icon: "🔥",
@@ -255,7 +257,7 @@ impl SystemCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Temporary files. May contain files in use.",
+                description: Cow::Borrowed("Temporary files. May contain files in use."),
                 safe_to_delete: SafetyLevel::Caution,
                 clean_command: None,
             });
@@ -293,7 +295,9 @@ impl SystemCleaner {
                         size: estimated_size,
                         file_count: Some(snapshot_count as u64),
                         last_modified: None,
-                        description: "Local Time Machine snapshots. Deleting frees space.",
+                        description: Cow::Borrowed(
+                            "Local Time Machine snapshots. Deleting frees space.",
+                        ),
                         safe_to_delete: SafetyLevel::Caution,
                         clean_command: Some("tmutil deletelocalsnapshots /".to_string()),
                     });
@@ -314,7 +318,8 @@ impl SystemCleaner {
             let user_cache = self.home.join("Library/Caches");
             if user_cache.exists() {
                 let (size, file_count) = calculate_dir_size(&user_cache)?;
-                if size > 1_000_000_000 { // 1GB
+                if size > 1_000_000_000 {
+                    // 1GB
                     items.push(CleanableItem {
                         name: "User Caches".to_string(),
                         category: "System".to_string(),
@@ -324,7 +329,7 @@ impl SystemCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: None,
-                        description: "Application caches. Apps will rebuild them.",
+                        description: Cow::Borrowed("Application caches. Apps will rebuild them."),
                         safe_to_delete: SafetyLevel::SafeWithCost,
                         clean_command: None,
                     });
@@ -352,7 +357,7 @@ impl SystemCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: None,
-                        description: "Font caches. System will rebuild on restart.",
+                        description: Cow::Borrowed("Font caches. System will rebuild on restart."),
                         safe_to_delete: SafetyLevel::SafeWithCost,
                         clean_command: Some("sudo atsutil databases -remove".to_string()),
                     });
@@ -376,7 +381,9 @@ impl SystemCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: None,
-                        description: "Image thumbnails. Will be regenerated when needed.",
+                        description: Cow::Borrowed(
+                            "Image thumbnails. Will be regenerated when needed.",
+                        ),
                         safe_to_delete: SafetyLevel::Safe,
                         clean_command: None,
                     });
@@ -387,7 +394,8 @@ impl SystemCleaner {
             let journal = PathBuf::from("/var/log/journal");
             if journal.exists() {
                 if let Ok((size, file_count)) = calculate_dir_size(&journal) {
-                    if size > 1_000_000_000 { // 1GB
+                    if size > 1_000_000_000 {
+                        // 1GB
                         items.push(CleanableItem {
                             name: "Journal Logs".to_string(),
                             category: "System".to_string(),
@@ -397,7 +405,7 @@ impl SystemCleaner {
                             size,
                             file_count: Some(file_count),
                             last_modified: None,
-                            description: "Systemd journal logs. Can be vacuumed.",
+                            description: Cow::Borrowed("Systemd journal logs. Can be vacuumed."),
                             safe_to_delete: SafetyLevel::SafeWithCost,
                             clean_command: Some("sudo journalctl --vacuum-size=500M".to_string()),
                         });
@@ -422,7 +430,7 @@ impl SystemCleaner {
                             size,
                             file_count: Some(file_count),
                             last_modified: None,
-                            description: "Windows Update download cache.",
+                            description: Cow::Borrowed("Windows Update download cache."),
                             safe_to_delete: SafetyLevel::SafeWithCost,
                             clean_command: None,
                         });
@@ -444,7 +452,9 @@ impl SystemCleaner {
                             size,
                             file_count: Some(file_count),
                             last_modified: None,
-                            description: "Windows prefetch data. May slow first app launches.",
+                            description: Cow::Borrowed(
+                                "Windows prefetch data. May slow first app launches.",
+                            ),
                             safe_to_delete: SafetyLevel::SafeWithCost,
                             clean_command: None,
                         });
@@ -462,15 +472,23 @@ pub fn find_big_files(min_size_mb: u64) -> Result<Vec<CleanableItem>> {
     let mut items = Vec::new();
     let min_size = min_size_mb * 1_000_000;
 
-    let home = dirs::home_dir().ok_or_else(|| {
-        crate::error::DevSweepError::Config("Could not find home directory".into())
-    })?;
+    let home = dirs::home_dir()
+        .ok_or_else(|| crate::error::NullEError::Config("Could not find home directory".into()))?;
 
     // Walk home directory, but skip certain paths
     let skip_paths = [
-        ".git", "node_modules", "target", ".cargo", ".npm",
-        ".gradle", "venv", ".venv", "__pycache__",
-        "Library/Caches", "AppData/Local", ".cache",
+        ".git",
+        "node_modules",
+        "target",
+        ".cargo",
+        ".npm",
+        ".gradle",
+        "venv",
+        ".venv",
+        "__pycache__",
+        "Library/Caches",
+        "AppData/Local",
+        ".cache",
     ];
 
     let walker = walkdir::WalkDir::new(&home)
@@ -479,7 +497,9 @@ pub fn find_big_files(min_size_mb: u64) -> Result<Vec<CleanableItem>> {
         .filter_entry(|e| {
             let path = e.path();
             // Skip hidden system directories and known cache locations
-            !skip_paths.iter().any(|skip| path.to_string_lossy().contains(skip))
+            !skip_paths
+                .iter()
+                .any(|skip| path.to_string_lossy().contains(skip))
         });
 
     for entry in walker.filter_map(|e| e.ok()) {
@@ -492,7 +512,8 @@ pub fn find_big_files(min_size_mb: u64) -> Result<Vec<CleanableItem>> {
         if let Ok(metadata) = path.metadata() {
             let size = metadata.len();
             if size >= min_size {
-                let name = path.file_name()
+                let name = path
+                    .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_else(|| "Unknown".to_string());
 
@@ -505,7 +526,7 @@ pub fn find_big_files(min_size_mb: u64) -> Result<Vec<CleanableItem>> {
                     size,
                     file_count: Some(1),
                     last_modified: get_mtime(path),
-                    description: "Large file found in home directory.",
+                    description: Cow::Borrowed("Large file found in home directory."),
                     safe_to_delete: SafetyLevel::Caution,
                     clean_command: None,
                 });

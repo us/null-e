@@ -7,7 +7,9 @@
 //! - Build cache
 
 use super::{CleanableItem, SafetyLevel};
+use crate::docker::parse_docker_size;
 use crate::error::Result;
+use std::borrow::Cow;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -60,7 +62,12 @@ impl DockerCleaner {
     /// Get Docker disk usage summary
     fn get_disk_usage(&self) -> Result<Vec<CleanableItem>> {
         let output = Command::new("docker")
-            .args(["system", "df", "--format", "{{.Type}}\t{{.Size}}\t{{.Reclaimable}}"])
+            .args([
+                "system",
+                "df",
+                "--format",
+                "{{.Type}}\t{{.Size}}\t{{.Reclaimable}}",
+            ])
             .output()?;
 
         if !output.status.success() {
@@ -75,13 +82,27 @@ impl DockerCleaner {
             if parts.len() >= 3 {
                 let type_name = parts[0];
                 let _total_size = parse_docker_size(parts[1]);
-                let reclaimable = parse_docker_size(parts[2].trim_end_matches(|c| c == ')' || c == '%' || c == '(').split('(').next().unwrap_or("0"));
+                let reclaimable = parse_docker_size(
+                    parts[2]
+                        .trim_end_matches([')', '%', '('])
+                        .split('(')
+                        .next()
+                        .unwrap_or("0"),
+                );
 
                 if reclaimable > 0 {
                     let (icon, desc, safety) = match type_name {
-                        "Images" => ("🐳", "Docker images not used by any container", SafetyLevel::SafeWithCost),
+                        "Images" => (
+                            "🐳",
+                            "Docker images not used by any container",
+                            SafetyLevel::SafeWithCost,
+                        ),
                         "Containers" => ("📦", "Stopped Docker containers", SafetyLevel::Safe),
-                        "Local Volumes" => ("💾", "Docker volumes not used by any container", SafetyLevel::Caution),
+                        "Local Volumes" => (
+                            "💾",
+                            "Docker volumes not used by any container",
+                            SafetyLevel::Caution,
+                        ),
                         "Build Cache" => ("🔨", "Docker build cache layers", SafetyLevel::Safe),
                         _ => ("🐳", "Docker resources", SafetyLevel::SafeWithCost),
                     };
@@ -95,7 +116,7 @@ impl DockerCleaner {
                         size: reclaimable,
                         file_count: None,
                         last_modified: None,
-                        description: desc,
+                        description: Cow::Borrowed(desc),
                         safe_to_delete: safety,
                         clean_command: Some(match type_name {
                             "Images" => "docker image prune -af".to_string(),
@@ -115,7 +136,13 @@ impl DockerCleaner {
     /// Detect dangling images
     fn detect_dangling_images(&self) -> Result<Vec<CleanableItem>> {
         let output = Command::new("docker")
-            .args(["images", "-f", "dangling=true", "--format", "{{.ID}}\t{{.Size}}\t{{.CreatedAt}}"])
+            .args([
+                "images",
+                "-f",
+                "dangling=true",
+                "--format",
+                "{{.ID}}\t{{.Size}}\t{{.CreatedAt}}",
+            ])
             .output()?;
 
         if !output.status.success() {
@@ -141,7 +168,7 @@ impl DockerCleaner {
                         size,
                         file_count: None,
                         last_modified: None,
-                        description: "Untagged image not used by any container.",
+                        description: Cow::Borrowed("Untagged image not used by any container."),
                         safe_to_delete: SafetyLevel::Safe,
                         clean_command: Some(format!("docker rmi -f {}", id)),
                     });
@@ -155,7 +182,14 @@ impl DockerCleaner {
     /// Detect stopped containers
     fn detect_stopped_containers(&self) -> Result<Vec<CleanableItem>> {
         let output = Command::new("docker")
-            .args(["ps", "-a", "-f", "status=exited", "--format", "{{.ID}}\t{{.Names}}\t{{.Size}}\t{{.CreatedAt}}"])
+            .args([
+                "ps",
+                "-a",
+                "-f",
+                "status=exited",
+                "--format",
+                "{{.ID}}\t{{.Names}}\t{{.Size}}\t{{.CreatedAt}}",
+            ])
             .output()?;
 
         if !output.status.success() {
@@ -190,7 +224,7 @@ impl DockerCleaner {
                     size,
                     file_count: None,
                     last_modified: None,
-                    description: "Stopped container that can be removed.",
+                    description: Cow::Borrowed("Stopped container that can be removed."),
                     safe_to_delete: SafetyLevel::Safe,
                     clean_command: Some(format!("docker rm -f {}", id)),
                 });
@@ -204,7 +238,14 @@ impl DockerCleaner {
     fn detect_unused_volumes(&self) -> Result<Vec<CleanableItem>> {
         // Get dangling volumes
         let output = Command::new("docker")
-            .args(["volume", "ls", "-f", "dangling=true", "--format", "{{.Name}}"])
+            .args([
+                "volume",
+                "ls",
+                "-f",
+                "dangling=true",
+                "--format",
+                "{{.Name}}",
+            ])
             .output()?;
 
         if !output.status.success() {
@@ -226,16 +267,21 @@ impl DockerCleaner {
                 .output()
                 .ok();
 
-            let size = inspect.and_then(|o| {
-                let out = String::from_utf8_lossy(&o.stdout);
-                out.lines()
-                    .find(|l| l.starts_with(name))
-                    .and_then(|l| l.split('\t').nth(1))
-                    .map(parse_docker_size)
-            }).unwrap_or(0);
+            let size = inspect
+                .and_then(|o| {
+                    let out = String::from_utf8_lossy(&o.stdout);
+                    out.lines()
+                        .find(|l| l.starts_with(name))
+                        .and_then(|l| l.split('\t').nth(1))
+                        .map(parse_docker_size)
+                })
+                .unwrap_or(0);
 
             items.push(CleanableItem {
-                name: format!("Volume: {}", if name.len() > 20 { &name[..20] } else { name }),
+                name: format!(
+                    "Volume: {}",
+                    if name.len() > 20 { &name[..20] } else { name }
+                ),
                 category: "Docker".to_string(),
                 subcategory: "Volumes".to_string(),
                 icon: "💾",
@@ -243,7 +289,7 @@ impl DockerCleaner {
                 size,
                 file_count: None,
                 last_modified: None,
-                description: "Docker volume not used by any container.",
+                description: Cow::Borrowed("Docker volume not used by any container."),
                 safe_to_delete: SafetyLevel::Caution,
                 clean_command: Some(format!("docker volume rm {}", name)),
             });
@@ -255,7 +301,12 @@ impl DockerCleaner {
     /// Detect build cache
     fn detect_build_cache(&self) -> Result<Vec<CleanableItem>> {
         let output = Command::new("docker")
-            .args(["builder", "du", "--format", "{{.ID}}\t{{.Size}}\t{{.LastUsedAt}}"])
+            .args([
+                "builder",
+                "du",
+                "--format",
+                "{{.ID}}\t{{.Size}}\t{{.LastUsedAt}}",
+            ])
             .output()?;
 
         if !output.status.success() {
@@ -284,7 +335,7 @@ impl DockerCleaner {
                 size: total_size,
                 file_count: Some(count as u64),
                 last_modified: None,
-                description: "Docker build cache layers. Speeds up rebuilds.",
+                description: Cow::Borrowed("Docker build cache layers. Speeds up rebuilds."),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: Some("docker builder prune -a".to_string()),
             }])
@@ -301,9 +352,7 @@ impl DockerCleaner {
             vec!["system", "prune", "-a", "-f"]
         };
 
-        let output = Command::new("docker")
-            .args(&args)
-            .output()?;
+        let output = Command::new("docker").args(&args).output()?;
 
         if !output.status.success() {
             return Ok(0);
@@ -329,38 +378,16 @@ impl Default for DockerCleaner {
     }
 }
 
-/// Parse Docker size strings like "1.5GB", "234MB", "567kB"
-fn parse_docker_size(s: &str) -> u64 {
-    let s = s.trim();
-
-    // Find where the number ends (including decimal point)
-    let num_end = s.find(|c: char| !c.is_ascii_digit() && c != '.').unwrap_or(s.len());
-    let (num_str, unit) = s.split_at(num_end);
-
-    let num: f64 = num_str.parse().unwrap_or(0.0);
-    let unit = unit.to_uppercase();
-
-    let multiplier = match unit.as_str() {
-        "B" | "" => 1.0,
-        "KB" | "K" => 1024.0,
-        "MB" | "M" => 1024.0 * 1024.0,
-        "GB" | "G" => 1024.0 * 1024.0 * 1024.0,
-        "TB" | "T" => 1024.0 * 1024.0 * 1024.0 * 1024.0,
-        _ => 1.0,
-    };
-
-    (num * multiplier) as u64
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_parse_docker_size() {
-        assert_eq!(parse_docker_size("1.5GB"), 1610612736);
-        assert_eq!(parse_docker_size("234MB"), 245366784);
-        assert_eq!(parse_docker_size("567kB"), 580608);
+        // Docker uses SI units (not IEC)
+        assert_eq!(parse_docker_size("1.5GB"), 1_500_000_000);
+        assert_eq!(parse_docker_size("234MB"), 234_000_000);
+        assert_eq!(parse_docker_size("567kB"), 567_000);
         assert_eq!(parse_docker_size("100B"), 100);
     }
 

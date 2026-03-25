@@ -7,7 +7,8 @@
 
 use super::{calculate_dir_size, CleanableItem, SafetyLevel};
 use crate::error::Result;
-use std::path::PathBuf;
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
 
 /// Game Development cleaner
 pub struct GameDevCleaner {
@@ -44,8 +45,16 @@ impl GameDevCleaner {
         #[cfg(target_os = "macos")]
         let unity_paths = [
             ("Library/Application Support/Unity", "Unity Settings", "🎮"),
-            ("Library/Caches/com.unity3d.UnityEditor", "Unity Editor Cache", "🎮"),
-            ("Library/Unity/Asset Store-5.x", "Unity Asset Store Cache", "🛒"),
+            (
+                "Library/Caches/com.unity3d.UnityEditor",
+                "Unity Editor Cache",
+                "🎮",
+            ),
+            (
+                "Library/Unity/Asset Store-5.x",
+                "Unity Asset Store Cache",
+                "🛒",
+            ),
             ("Library/Unity/cache", "Unity Global Cache", "🎮"),
             ("Library/Logs/Unity", "Unity Logs", "📝"),
         ];
@@ -54,14 +63,22 @@ impl GameDevCleaner {
         let unity_paths = [
             (".config/unity3d", "Unity Settings", "🎮"),
             (".cache/unity3d", "Unity Cache", "🎮"),
-            (".local/share/unity3d/Asset Store-5.x", "Unity Asset Store Cache", "🛒"),
+            (
+                ".local/share/unity3d/Asset Store-5.x",
+                "Unity Asset Store Cache",
+                "🛒",
+            ),
         ];
 
         #[cfg(target_os = "windows")]
         let unity_paths = [
             ("AppData/Roaming/Unity", "Unity Settings", "🎮"),
             ("AppData/Local/Unity/cache", "Unity Cache", "🎮"),
-            ("AppData/Roaming/Unity/Asset Store-5.x", "Unity Asset Store Cache", "🛒"),
+            (
+                "AppData/Roaming/Unity/Asset Store-5.x",
+                "Unity Asset Store Cache",
+                "🛒",
+            ),
         ];
 
         for (rel_path, name, icon) in unity_paths {
@@ -87,9 +104,9 @@ impl GameDevCleaner {
                 file_count: Some(file_count),
                 last_modified: None,
                 description: if is_asset_store {
-                    "Downloaded Asset Store packages. Can be re-downloaded."
+                    Cow::Borrowed("Downloaded Asset Store packages. Can be re-downloaded.")
                 } else {
-                    "Unity Editor cache and data. Will be rebuilt."
+                    Cow::Borrowed("Unity Editor cache and data. Will be rebuilt.")
                 },
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: None,
@@ -112,7 +129,7 @@ impl GameDevCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: None,
-                        description: "Unity Hub installer cache.",
+                        description: Cow::Borrowed("Unity Hub installer cache."),
                         safe_to_delete: SafetyLevel::Safe,
                         clean_command: None,
                     });
@@ -130,8 +147,16 @@ impl GameDevCleaner {
         #[cfg(target_os = "macos")]
         let unreal_paths = [
             ("Library/Application Support/Epic", "Epic Games Cache", "🎯"),
-            ("Library/Caches/com.epicgames.UnrealEngine", "Unreal Engine Cache", "🎯"),
-            ("Library/Application Support/Unreal Engine", "Unreal Engine Data", "🎯"),
+            (
+                "Library/Caches/com.epicgames.UnrealEngine",
+                "Unreal Engine Cache",
+                "🎯",
+            ),
+            (
+                "Library/Application Support/Unreal Engine",
+                "Unreal Engine Data",
+                "🎯",
+            ),
         ];
 
         #[cfg(target_os = "linux")]
@@ -142,7 +167,11 @@ impl GameDevCleaner {
 
         #[cfg(target_os = "windows")]
         let unreal_paths = [
-            ("AppData/Local/EpicGamesLauncher", "Epic Games Launcher", "🎯"),
+            (
+                "AppData/Local/EpicGamesLauncher",
+                "Epic Games Launcher",
+                "🎯",
+            ),
             ("AppData/Local/UnrealEngine", "Unreal Engine Cache", "🎯"),
         ];
 
@@ -166,7 +195,7 @@ impl GameDevCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Unreal Engine cache and shader data.",
+                description: Cow::Borrowed("Unreal Engine cache and shader data."),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: None,
             });
@@ -175,7 +204,9 @@ impl GameDevCleaner {
         // DerivedDataCache (can be huge)
         #[cfg(target_os = "macos")]
         {
-            let ddc_path = self.home.join("Library/Application Support/Unreal Engine/Common/DerivedDataCache");
+            let ddc_path = self
+                .home
+                .join("Library/Application Support/Unreal Engine/Common/DerivedDataCache");
             if ddc_path.exists() {
                 let (size, file_count) = calculate_dir_size(&ddc_path)?;
                 if size > 500_000_000 {
@@ -188,7 +219,9 @@ impl GameDevCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: None,
-                        description: "Shared Derived Data Cache. Can be very large. Will be rebuilt.",
+                        description: Cow::Borrowed(
+                            "Shared Derived Data Cache. Can be very large. Will be rebuilt.",
+                        ),
                         safe_to_delete: SafetyLevel::SafeWithCost,
                         clean_command: None,
                     });
@@ -242,7 +275,7 @@ impl GameDevCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Godot engine cache and editor data.",
+                description: Cow::Borrowed("Godot engine cache and editor data."),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: None,
             });
@@ -252,7 +285,7 @@ impl GameDevCleaner {
     }
 
     /// Scan for Unity project folders and their cleanable directories
-    pub fn scan_unity_projects(&self, search_path: &PathBuf) -> Result<Vec<CleanableItem>> {
+    pub fn scan_unity_projects(&self, search_path: &Path) -> Result<Vec<CleanableItem>> {
         let mut items = Vec::new();
 
         // This would be called during a project scan
@@ -286,13 +319,13 @@ impl GameDevCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: match dir_name {
+                description: Cow::Borrowed(match dir_name {
                     "Library" => "Unity Library cache. Will be rebuilt on project open.",
                     "Temp" => "Temporary build files. Safe to delete.",
                     "Logs" => "Unity log files. Safe to delete.",
                     "Builds" => "Build output. Check if needed before deleting.",
                     _ => "Unity project files.",
-                },
+                }),
                 safe_to_delete: safety,
                 clean_command: None,
             });
@@ -302,7 +335,7 @@ impl GameDevCleaner {
     }
 
     /// Scan for Unreal project folders and their cleanable directories
-    pub fn scan_unreal_projects(&self, search_path: &PathBuf) -> Result<Vec<CleanableItem>> {
+    pub fn scan_unreal_projects(&self, search_path: &Path) -> Result<Vec<CleanableItem>> {
         let mut items = Vec::new();
 
         // Unreal projects have: Intermediate/, Saved/, DerivedDataCache/, Binaries/
@@ -335,13 +368,13 @@ impl GameDevCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: match dir_name {
+                description: Cow::Borrowed(match dir_name {
                     "Intermediate" => "Build intermediate files. Will be rebuilt.",
                     "DerivedDataCache" => "Shader and asset cache. Will be rebuilt.",
                     "Saved" => "Saved data including autosaves. Check before deleting.",
                     "Binaries" => "Compiled binaries. Will be rebuilt.",
                     _ => "Unreal project files.",
-                },
+                }),
                 safe_to_delete: safety,
                 clean_command: None,
             });

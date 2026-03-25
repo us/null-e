@@ -1,6 +1,6 @@
 //! Trash records - tracking deleted items for recovery
 
-use crate::error::{DevSweepError, Result};
+use crate::error::{NullEError, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -53,8 +53,8 @@ impl TrashRecordStore {
     /// Create a new record store
     pub fn new() -> Result<Self> {
         let records_path = dirs::data_dir()
-            .ok_or_else(|| DevSweepError::Trash("Cannot find data directory".into()))?
-            .join("devsweep")
+            .ok_or_else(|| NullEError::Trash("Cannot find data directory".into()))?
+            .join("null-e")
             .join("trash_records.json");
 
         // Ensure directory exists
@@ -136,7 +136,6 @@ impl Default for TrashRecordStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
 
     #[test]
     fn test_trash_record_creation() {

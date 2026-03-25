@@ -7,6 +7,7 @@
 
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
 use crate::error::Result;
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 /// iOS Dependency caches cleaner
@@ -70,9 +71,11 @@ impl IosDependencyCleaner {
                 file_count: Some(file_count),
                 last_modified: None,
                 description: if is_repos {
-                    "CocoaPods spec repositories. Will be re-downloaded on next pod install."
+                    Cow::Borrowed(
+                        "CocoaPods spec repositories. Will be re-downloaded on next pod install.",
+                    )
                 } else {
-                    "CocoaPods download cache. Safe to delete."
+                    Cow::Borrowed("CocoaPods download cache. Safe to delete.")
                 },
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: Some("pod cache clean --all".to_string()),
@@ -100,7 +103,9 @@ impl IosDependencyCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Carthage dependency cache. Will be rebuilt on next carthage bootstrap.",
+                    description: Cow::Borrowed(
+                        "Carthage dependency cache. Will be rebuilt on next carthage bootstrap.",
+                    ),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: None,
                 });
@@ -113,7 +118,8 @@ impl IosDependencyCleaner {
             if let Ok(entries) = std::fs::read_dir(&derived_data) {
                 for entry in entries.filter_map(|e| e.ok()) {
                     let path = entry.path();
-                    let name = path.file_name()
+                    let name = path
+                        .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_default();
 
@@ -130,7 +136,9 @@ impl IosDependencyCleaner {
                                 size,
                                 file_count: Some(file_count),
                                 last_modified: get_mtime(&entry.path()),
-                                description: "Carthage build artifacts. Will be rebuilt on next build.",
+                                description: Cow::Borrowed(
+                                    "Carthage build artifacts. Will be rebuilt on next build.",
+                                ),
                                 safe_to_delete: SafetyLevel::SafeWithCost,
                                 clean_command: None,
                             });
@@ -150,7 +158,10 @@ impl IosDependencyCleaner {
         let spm_paths = [
             ("Library/Caches/org.swift.swiftpm", "SPM Cache"),
             ("Library/org.swift.swiftpm", "SPM Data"),
-            ("Library/Developer/Xcode/DerivedData/*/SourcePackages", "SPM Source Packages"),
+            (
+                "Library/Developer/Xcode/DerivedData/*/SourcePackages",
+                "SPM Source Packages",
+            ),
         ];
 
         for (rel_path, name) in spm_paths {
@@ -167,7 +178,8 @@ impl IosDependencyCleaner {
                             if source_packages.exists() {
                                 let (size, file_count) = calculate_dir_size(&source_packages)?;
                                 if size > 50_000_000 {
-                                    let project_name = entry.file_name().to_string_lossy().to_string();
+                                    let project_name =
+                                        entry.file_name().to_string_lossy().to_string();
                                     items.push(CleanableItem {
                                         name: format!("SPM Packages: {}", project_name.split('-').next().unwrap_or(&project_name)),
                                         category: "iOS Dependencies".to_string(),
@@ -177,7 +189,7 @@ impl IosDependencyCleaner {
                                         size,
                                         file_count: Some(file_count),
                                         last_modified: get_mtime(&entry.path()),
-                                        description: "Swift Package Manager downloaded packages. Will be re-downloaded.",
+                                        description: Cow::Borrowed("Swift Package Manager downloaded packages. Will be re-downloaded."),
                                         safe_to_delete: SafetyLevel::SafeWithCost,
                                         clean_command: Some("swift package purge-cache".to_string()),
                                     });
@@ -208,7 +220,9 @@ impl IosDependencyCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Swift Package Manager cache. Will be rebuilt on next build.",
+                description: Cow::Borrowed(
+                    "Swift Package Manager cache. Will be rebuilt on next build.",
+                ),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: Some("swift package purge-cache".to_string()),
             });
@@ -228,7 +242,7 @@ impl IosDependencyCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Xcode's Swift Package Manager cache.",
+                    description: Cow::Borrowed("Xcode's Swift Package Manager cache."),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: None,
                 });

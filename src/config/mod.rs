@@ -2,7 +2,7 @@
 //!
 //! Handles loading, saving, and merging configuration from multiple sources:
 //! - Default values
-//! - Config file (~/.config/devsweep/config.toml)
+//! - Config file (~/.config/null-e/config.toml)
 //! - Environment variables
 //! - Command line arguments
 
@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Main configuration structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct Config {
     /// General settings
@@ -29,18 +29,6 @@ pub struct Config {
     pub ui: UiSettings,
     /// Plugin settings
     pub plugins: PluginSettings,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            general: GeneralConfig::default(),
-            scan: ScanSettings::default(),
-            clean: CleanSettings::default(),
-            ui: UiSettings::default(),
-            plugins: PluginSettings::default(),
-        }
-    }
 }
 
 /// General settings
@@ -178,22 +166,13 @@ impl Default for UiSettings {
 }
 
 /// Plugin settings
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct PluginSettings {
     /// Enabled plugins (empty = all)
     pub enabled: Vec<String>,
     /// Disabled plugins
     pub disabled: Vec<String>,
-}
-
-impl Default for PluginSettings {
-    fn default() -> Self {
-        Self {
-            enabled: vec![],
-            disabled: vec![],
-        }
-    }
 }
 
 // Custom serde implementations for enums
@@ -219,9 +198,8 @@ mod delete_method_serde {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        DeleteMethod::from_str(&s).ok_or_else(|| {
-            serde::de::Error::custom(format!("invalid delete method: {}", s))
-        })
+        DeleteMethod::parse(&s)
+            .ok_or_else(|| serde::de::Error::custom(format!("invalid delete method: {}", s)))
     }
 }
 
@@ -241,9 +219,8 @@ mod protection_level_serde {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        ProtectionLevel::from_str(&s).ok_or_else(|| {
-            serde::de::Error::custom(format!("invalid protection level: {}", s))
-        })
+        ProtectionLevel::parse(&s)
+            .ok_or_else(|| serde::de::Error::custom(format!("invalid protection level: {}", s)))
     }
 }
 

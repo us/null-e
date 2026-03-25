@@ -2,13 +2,13 @@
 //!
 //! Defines the interface for scanning filesystems for projects and artifacts.
 
-use super::{Project, ArtifactStats};
+use super::{ArtifactStats, Project};
 use crate::error::Result;
+use parking_lot::Mutex;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use parking_lot::Mutex;
 
 /// Configuration for scanning operations
 #[derive(Debug, Clone)]

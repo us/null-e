@@ -3,8 +3,8 @@
 //! Provides functionality to detect uncommitted changes and protect
 //! users from accidentally deleting unsaved work.
 
-mod status;
 mod protection;
+mod status;
 
-pub use status::*;
 pub use protection::*;
+pub use status::*;

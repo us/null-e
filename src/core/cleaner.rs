@@ -4,10 +4,10 @@
 
 use super::{Artifact, CleanResult, Project};
 use crate::error::Result;
+use parking_lot::Mutex;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 /// Configuration for cleaning operations
 #[derive(Debug, Clone)]
@@ -289,7 +289,7 @@ impl CleanSummary {
     }
 
     /// Get human-readable summary
-    pub fn to_string(&self) -> String {
+    pub fn summary_text(&self) -> String {
         let freed = humansize::format_size(self.bytes_freed, humansize::BINARY);
 
         if self.is_complete_success() {
@@ -303,6 +303,12 @@ impl CleanSummary {
                 self.succeeded, freed, self.failed, self.skipped
             )
         }
+    }
+}
+
+impl std::fmt::Display for CleanSummary {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.summary_text())
     }
 }
 

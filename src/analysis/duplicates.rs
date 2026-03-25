@@ -92,7 +92,12 @@ impl DuplicateFinder {
             let path = entry.path();
 
             // Look for package.json files in node_modules
-            if path.is_file() && path.file_name().map(|n| n == "package.json").unwrap_or(false) {
+            if path.is_file()
+                && path
+                    .file_name()
+                    .map(|n| n == "package.json")
+                    .unwrap_or(false)
+            {
                 // Check if inside node_modules
                 let path_str = path.to_string_lossy();
                 if !path_str.contains("node_modules") {
@@ -110,14 +115,13 @@ impl DuplicateFinder {
 
                             // Get package directory
                             if let Some(pkg_dir) = path.parent() {
-                                let size = calculate_dir_size(pkg_dir)
-                                    .map(|(s, _)| s)
-                                    .unwrap_or(0);
+                                let size = calculate_dir_size(pkg_dir).map(|(s, _)| s).unwrap_or(0);
 
-                                package_locations
-                                    .entry(name)
-                                    .or_default()
-                                    .push((pkg_dir.to_path_buf(), version, size));
+                                package_locations.entry(name).or_default().push((
+                                    pkg_dir.to_path_buf(),
+                                    version,
+                                    size,
+                                ));
                             }
                         }
                     }
@@ -164,7 +168,8 @@ impl DuplicateFinder {
                 continue;
             }
 
-            let locations_paths: Vec<PathBuf> = locations.iter().map(|(p, _, _)| p.clone()).collect();
+            let locations_paths: Vec<PathBuf> =
+                locations.iter().map(|(p, _, _)| p.clone()).collect();
 
             recommendations.push(Recommendation {
                 kind: RecommendationKind::DuplicateDependency,
@@ -220,7 +225,10 @@ impl DuplicateFinder {
             .filter_map(|e| e.ok())
         {
             let path = entry.path();
-            let name = path.file_name().map(|n| n.to_string_lossy()).unwrap_or_default();
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy())
+                .unwrap_or_default();
 
             // Check for venv markers
             if path.is_dir() && (name == "venv" || name == ".venv" || name == "env") {

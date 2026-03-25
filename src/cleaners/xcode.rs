@@ -9,6 +9,7 @@
 
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
 use crate::error::Result;
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 /// Xcode cleaner
@@ -56,8 +57,7 @@ impl XcodeCleaner {
 
     /// Detect DerivedData folders
     fn detect_derived_data(&self) -> Result<Vec<CleanableItem>> {
-        let derived_data = self.home
-            .join("Library/Developer/Xcode/DerivedData");
+        let derived_data = self.home.join("Library/Developer/Xcode/DerivedData");
 
         if !derived_data.exists() {
             return Ok(vec![]);
@@ -70,7 +70,8 @@ impl XcodeCleaner {
             for entry in entries.filter_map(|e| e.ok()) {
                 let path = entry.path();
                 if path.is_dir() {
-                    let name = path.file_name()
+                    let name = path
+                        .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_else(|| "Unknown".to_string());
 
@@ -93,7 +94,9 @@ impl XcodeCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: get_mtime(&entry.path()),
-                        description: "Build artifacts, indexes, logs. Safe to delete.",
+                        description: Cow::Borrowed(
+                            "Build artifacts, indexes, logs. Safe to delete.",
+                        ),
                         safe_to_delete: SafetyLevel::Safe,
                         clean_command: None,
                     });
@@ -106,8 +109,7 @@ impl XcodeCleaner {
 
     /// Detect Archives
     fn detect_archives(&self) -> Result<Vec<CleanableItem>> {
-        let archives = self.home
-            .join("Library/Developer/Xcode/Archives");
+        let archives = self.home.join("Library/Developer/Xcode/Archives");
 
         if !archives.exists() {
             return Ok(vec![]);
@@ -127,7 +129,8 @@ impl XcodeCleaner {
                     for archive in archive_files.filter_map(|e| e.ok()) {
                         let path = archive.path();
                         if path.extension().map(|e| e == "xcarchive").unwrap_or(false) {
-                            let name = path.file_stem()
+                            let name = path
+                                .file_stem()
                                 .map(|n| n.to_string_lossy().to_string())
                                 .unwrap_or_else(|| "Unknown".to_string());
 
@@ -142,7 +145,9 @@ impl XcodeCleaner {
                                 size,
                                 file_count: Some(file_count),
                                 last_modified: get_mtime(&archive.path()),
-                                description: "App archive with dSYM. Keep if you need crash logs.",
+                                description: Cow::Borrowed(
+                                    "App archive with dSYM. Keep if you need crash logs.",
+                                ),
                                 safe_to_delete: SafetyLevel::Caution,
                                 clean_command: None,
                             });
@@ -171,7 +176,7 @@ impl XcodeCleaner {
                 continue;
             }
 
-            let platform = support_path.split('/').last().unwrap_or("Device");
+            let platform = support_path.split('/').next_back().unwrap_or("Device");
 
             if let Ok(entries) = std::fs::read_dir(&path) {
                 for entry in entries.filter_map(|e| e.ok()) {
@@ -180,7 +185,8 @@ impl XcodeCleaner {
                         continue;
                     }
 
-                    let version = entry_path.file_name()
+                    let version = entry_path
+                        .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_else(|| "Unknown".to_string());
 
@@ -198,7 +204,9 @@ impl XcodeCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: get_mtime(&entry.path()),
-                        description: "Debug symbols for iOS version. Safe to delete old versions.",
+                        description: Cow::Borrowed(
+                            "Debug symbols for iOS version. Safe to delete old versions.",
+                        ),
                         safe_to_delete: SafetyLevel::SafeWithCost,
                         clean_command: None,
                     });
@@ -211,8 +219,7 @@ impl XcodeCleaner {
 
     /// Detect Simulators
     fn detect_simulators(&self) -> Result<Vec<CleanableItem>> {
-        let simulators = self.home
-            .join("Library/Developer/CoreSimulator/Devices");
+        let simulators = self.home.join("Library/Developer/CoreSimulator/Devices");
 
         if !simulators.exists() {
             return Ok(vec![]);
@@ -236,15 +243,13 @@ impl XcodeCleaner {
                         .ok()
                         .and_then(|content| {
                             // Simple regex-like extraction for name
-                            content.find("<key>name</key>")
-                                .and_then(|idx| {
-                                    let after = &content[idx..];
-                                    after.find("<string>")
-                                        .and_then(|start| {
-                                            let s = &after[start + 8..];
-                                            s.find("</string>").map(|end| s[..end].to_string())
-                                        })
+                            content.find("<key>name</key>").and_then(|idx| {
+                                let after = &content[idx..];
+                                after.find("<string>").and_then(|start| {
+                                    let s = &after[start + 8..];
+                                    s.find("</string>").map(|end| s[..end].to_string())
                                 })
+                            })
                         })
                         .unwrap_or_else(|| "Unknown Simulator".to_string())
                 } else {
@@ -266,7 +271,7 @@ impl XcodeCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: get_mtime(&entry.path()),
-                    description: "iOS Simulator with apps and data.",
+                    description: Cow::Borrowed("iOS Simulator with apps and data."),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: Some("xcrun simctl delete".to_string()),
                 });
@@ -280,7 +285,10 @@ impl XcodeCleaner {
     fn detect_caches(&self) -> Result<Vec<CleanableItem>> {
         let cache_paths = [
             ("Xcode Cache", "Library/Caches/com.apple.dt.Xcode"),
-            ("Instruments Cache", "Library/Caches/com.apple.dt.instruments"),
+            (
+                "Instruments Cache",
+                "Library/Caches/com.apple.dt.instruments",
+            ),
             ("Swift Package Cache", "Library/Caches/org.swift.swiftpm"),
             ("Playgrounds Cache", "Library/Developer/XCPGDevices"),
         ];
@@ -307,7 +315,7 @@ impl XcodeCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Xcode cache files. Safe to delete.",
+                description: Cow::Borrowed("Xcode cache files. Safe to delete."),
                 safe_to_delete: SafetyLevel::Safe,
                 clean_command: None,
             });
@@ -318,7 +326,8 @@ impl XcodeCleaner {
 
     /// Detect documentation downloads
     fn detect_documentation(&self) -> Result<Vec<CleanableItem>> {
-        let doc_path = self.home
+        let doc_path = self
+            .home
             .join("Library/Developer/Shared/Documentation/DocSets");
 
         if !doc_path.exists() {
@@ -339,7 +348,7 @@ impl XcodeCleaner {
             size,
             file_count: Some(file_count),
             last_modified: None,
-            description: "Offline documentation. Can be re-downloaded.",
+            description: Cow::Borrowed("Offline documentation. Can be re-downloaded."),
             safe_to_delete: SafetyLevel::SafeWithCost,
             clean_command: None,
         }])

@@ -1,12 +1,12 @@
 {
     "$schema": "https://raw.githubusercontent.com/ScoopInstaller/Scoop/master/schema.json",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "The friendly disk cleanup robot - send your cruft to /dev/null",
     "homepage": "https://github.com/us/null-e",
     "license": "WTFPL",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/us/null-e/releases/download/v0.1.0/null-e-windows-x86_64.zip",
+            "url": "https://github.com/us/null-e/releases/download/v0.2.0/null-e-windows-x86_64.zip",
             "hash": "PLACEHOLDER_SHA256_WINDOWS"
         }
     },

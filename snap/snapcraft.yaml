@@ -1,6 +1,6 @@
 name: null-e
 base: core22
-version: '0.1.0'
+version: '0.2.0'
 summary: The friendly disk cleanup robot
 description: |
   null-e helps developers reclaim disk space by finding and cleaning

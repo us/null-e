@@ -5,7 +5,7 @@
 use crate::core::{
     ArtifactStats, Project, ProjectId, ScanConfig, ScanError, ScanProgress, ScanResult, Scanner,
 };
-use crate::error::{DevSweepError, Result};
+use crate::error::{NullEError, Result};
 use crate::plugins::PluginRegistry;
 use dashmap::DashMap;
 use rayon::prelude::*;
@@ -31,7 +31,12 @@ impl ParallelScanner {
     }
 
     /// Scan a single root directory
-    fn scan_root(&self, root: &Path, projects: &DashMap<ProjectId, Project>, config: &ScanConfig) -> Result<()> {
+    fn scan_root(
+        &self,
+        root: &Path,
+        projects: &DashMap<ProjectId, Project>,
+        config: &ScanConfig,
+    ) -> Result<()> {
         let walker = WalkDir::new(root)
             .max_depth(config.max_depth.unwrap_or(usize::MAX))
             .follow_links(false);
@@ -59,7 +64,9 @@ impl ParallelScanner {
             ".cache",
             ".turbo",
             "coverage",
-        ].into_iter().collect();
+        ]
+        .into_iter()
+        .collect();
 
         let entries = walker.into_iter().filter_entry(move |e| {
             let name = e.file_name().to_str().unwrap_or("");
@@ -84,16 +91,14 @@ impl ParallelScanner {
         for entry in entries {
             // Check for cancellation
             if self.progress.is_cancelled() {
-                return Err(DevSweepError::ScanInterrupted);
+                return Err(NullEError::ScanInterrupted);
             }
 
             let entry = match entry {
                 Ok(e) => e,
                 Err(e) => {
-                    self.progress.add_error(ScanError::new(
-                        PathBuf::new(),
-                        format!("Walk error: {}", e),
-                    ));
+                    self.progress
+                        .add_error(ScanError::new(PathBuf::new(), format!("Walk error: {}", e)));
                     continue;
                 }
             };
@@ -112,6 +117,10 @@ impl ParallelScanner {
             if projects.contains_key(&project_id) {
                 continue;
             }
+            // Note: There's a small TOCTOU window between contains_key and insert below,
+            // but duplicate inserts are harmless (same project, same data) and using
+            // entry() API would hold the shard lock during the entire artifact calculation,
+            // which would hurt parallelism significantly.
 
             // Try to detect project type
             if let Some((kind, plugin)) = self.registry.detect_project(path) {
@@ -122,7 +131,7 @@ impl ParallelScanner {
                 match plugin.find_artifacts(path) {
                     Ok(mut artifacts) => {
                         // Calculate sizes in parallel
-                        artifacts.par_iter_mut().for_each(|artifact| {
+                        artifacts.iter_mut().for_each(|artifact| {
                             if let Ok(size) = plugin.calculate_size(artifact) {
                                 artifact.size = size;
                             }
@@ -174,15 +183,15 @@ impl Scanner for ParallelScanner {
 
         // Validate roots
         if config.roots.is_empty() {
-            return Err(DevSweepError::Config("No scan roots specified".into()));
+            return Err(NullEError::Config("No scan roots specified".into()));
         }
 
         for root in &config.roots {
             if !root.exists() {
-                return Err(DevSweepError::PathNotFound(root.clone()));
+                return Err(NullEError::PathNotFound(root.clone()));
             }
             if !root.is_dir() {
-                return Err(DevSweepError::NotADirectory(root.clone()));
+                return Err(NullEError::NotADirectory(root.clone()));
             }
         }
 
@@ -190,7 +199,7 @@ impl Scanner for ParallelScanner {
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(config.parallelism.unwrap_or(num_cpus::get()))
             .build()
-            .map_err(|e| DevSweepError::Scanner(format!("Thread pool error: {}", e)))?;
+            .map_err(|e| NullEError::Scanner(format!("Thread pool error: {}", e)))?;
 
         // Concurrent project map
         let projects: DashMap<ProjectId, Project> = DashMap::new();
@@ -199,11 +208,9 @@ impl Scanner for ParallelScanner {
         pool.install(|| {
             config.roots.par_iter().for_each(|root| {
                 if let Err(e) = self.scan_root(root, &projects, config) {
-                    if !matches!(e, DevSweepError::ScanInterrupted) {
-                        self.progress.add_error(ScanError::new(
-                            root.clone(),
-                            e.to_string(),
-                        ));
+                    if !matches!(e, NullEError::ScanInterrupted) {
+                        self.progress
+                            .add_error(ScanError::new(root.clone(), e.to_string()));
                     }
                 }
             });
@@ -213,7 +220,7 @@ impl Scanner for ParallelScanner {
 
         // Check if scan was cancelled
         if self.progress.is_cancelled() {
-            return Err(DevSweepError::ScanInterrupted);
+            return Err(NullEError::ScanInterrupted);
         }
 
         // Collect and sort results
@@ -298,7 +305,10 @@ mod tests {
         let result = scanner.scan(&config).unwrap();
 
         assert_eq!(result.projects.len(), 1);
-        assert!(result.projects[0].artifacts.iter().any(|a| a.name() == "node_modules"));
+        assert!(result.projects[0]
+            .artifacts
+            .iter()
+            .any(|a| a.name() == "node_modules"));
     }
 
     #[test]
@@ -313,7 +323,10 @@ mod tests {
         let result = scanner.scan(&config).unwrap();
 
         assert_eq!(result.projects.len(), 1);
-        assert!(result.projects[0].artifacts.iter().any(|a| a.name() == "target"));
+        assert!(result.projects[0]
+            .artifacts
+            .iter()
+            .any(|a| a.name() == "target"));
     }
 
     #[test]
@@ -390,10 +403,7 @@ mod tests {
         let result = scanner.scan(&config);
 
         assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            DevSweepError::ScanInterrupted
-        ));
+        assert!(matches!(result.unwrap_err(), NullEError::ScanInterrupted));
     }
 
     #[test]

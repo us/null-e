@@ -1,6 +1,8 @@
 //! Node.js/npm/yarn/pnpm/bun plugin
 
-use crate::core::{Artifact, ArtifactKind, ArtifactMetadata, MarkerKind, ProjectKind, ProjectMarker};
+use crate::core::{
+    Artifact, ArtifactKind, ArtifactMetadata, MarkerKind, ProjectKind, ProjectMarker,
+};
 use crate::error::Result;
 use crate::plugins::Plugin;
 use std::path::{Path, PathBuf};
@@ -133,8 +135,7 @@ impl Plugin for NodePlugin {
         let build = project_root.join("build");
         if build.exists() && build.is_dir() {
             // Check if it's a build output, not source
-            if !project_root.join("build/index.html").exists()
-                || project_root.join("src").exists()
+            if !project_root.join("build/index.html").exists() || project_root.join("src").exists()
             {
                 artifacts.push(Artifact {
                     path: build,

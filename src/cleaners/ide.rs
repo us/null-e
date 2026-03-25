@@ -8,6 +8,7 @@
 
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
 use crate::error::Result;
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 /// IDE cleaner
@@ -95,7 +96,8 @@ impl IdeCleaner {
                         continue;
                     }
 
-                    let name = path.file_name()
+                    let name = path
+                        .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_default();
 
@@ -114,7 +116,9 @@ impl IdeCleaner {
                         size,
                         file_count: Some(file_count),
                         last_modified: get_mtime(&entry.path()),
-                        description: "IDE cache and indexes. Will be rebuilt on next open.",
+                        description: Cow::Borrowed(
+                            "IDE cache and indexes. Will be rebuilt on next open.",
+                        ),
                         safe_to_delete: SafetyLevel::SafeWithCost,
                         clean_command: None,
                     });
@@ -132,7 +136,8 @@ impl IdeCleaner {
                         continue;
                     }
 
-                    let name = path.file_name()
+                    let name = path
+                        .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_default();
 
@@ -156,9 +161,11 @@ impl IdeCleaner {
                         file_count: Some(file_count),
                         last_modified: get_mtime(&entry.path()),
                         description: if is_old_version {
-                            "Old IDE version data. Safe to delete if not using this version."
+                            Cow::Borrowed(
+                                "Old IDE version data. Safe to delete if not using this version.",
+                            )
                         } else {
-                            "IDE settings, plugins, and history."
+                            Cow::Borrowed("IDE settings, plugins, and history.")
                         },
                         safe_to_delete: if is_old_version {
                             SafetyLevel::Safe
@@ -185,7 +192,7 @@ impl IdeCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "IDE log files. Safe to delete.",
+                    description: Cow::Borrowed("IDE log files. Safe to delete."),
                     safe_to_delete: SafetyLevel::Safe,
                     clean_command: None,
                 });
@@ -213,7 +220,7 @@ impl IdeCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "IDE cache and indexes.",
+                    description: Cow::Borrowed("IDE cache and indexes."),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: None,
                 });
@@ -233,7 +240,7 @@ impl IdeCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "IDE settings and plugins.",
+                    description: Cow::Borrowed("IDE settings and plugins."),
                     safe_to_delete: SafetyLevel::Caution,
                     clean_command: None,
                 });
@@ -261,7 +268,7 @@ impl IdeCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "IDE cache and indexes.",
+                    description: Cow::Borrowed("IDE cache and indexes."),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: None,
                 });
@@ -277,13 +284,31 @@ impl IdeCleaner {
 
         #[cfg(target_os = "macos")]
         let vscode_paths = [
-            ("Library/Application Support/Code/CachedData", "VS Code Cached Data"),
-            ("Library/Application Support/Code/CachedExtensions", "VS Code Cached Extensions"),
-            ("Library/Application Support/Code/CachedExtensionVSIXs", "VS Code Extension VSIXs"),
+            (
+                "Library/Application Support/Code/CachedData",
+                "VS Code Cached Data",
+            ),
+            (
+                "Library/Application Support/Code/CachedExtensions",
+                "VS Code Cached Extensions",
+            ),
+            (
+                "Library/Application Support/Code/CachedExtensionVSIXs",
+                "VS Code Extension VSIXs",
+            ),
             ("Library/Application Support/Code/Cache", "VS Code Cache"),
-            ("Library/Application Support/Code/User/workspaceStorage", "VS Code Workspace Storage"),
-            ("Library/Caches/com.microsoft.VSCode", "VS Code System Cache"),
-            ("Library/Caches/com.microsoft.VSCode.ShipIt", "VS Code Update Cache"),
+            (
+                "Library/Application Support/Code/User/workspaceStorage",
+                "VS Code Workspace Storage",
+            ),
+            (
+                "Library/Caches/com.microsoft.VSCode",
+                "VS Code System Cache",
+            ),
+            (
+                "Library/Caches/com.microsoft.VSCode.ShipIt",
+                "VS Code Update Cache",
+            ),
         ];
 
         #[cfg(target_os = "linux")]
@@ -291,15 +316,24 @@ impl IdeCleaner {
             (".config/Code/CachedData", "VS Code Cached Data"),
             (".config/Code/CachedExtensions", "VS Code Cached Extensions"),
             (".config/Code/Cache", "VS Code Cache"),
-            (".config/Code/User/workspaceStorage", "VS Code Workspace Storage"),
+            (
+                ".config/Code/User/workspaceStorage",
+                "VS Code Workspace Storage",
+            ),
         ];
 
         #[cfg(target_os = "windows")]
         let vscode_paths = [
             ("AppData/Roaming/Code/CachedData", "VS Code Cached Data"),
-            ("AppData/Roaming/Code/CachedExtensions", "VS Code Cached Extensions"),
+            (
+                "AppData/Roaming/Code/CachedExtensions",
+                "VS Code Cached Extensions",
+            ),
             ("AppData/Roaming/Code/Cache", "VS Code Cache"),
-            ("AppData/Roaming/Code/User/workspaceStorage", "VS Code Workspace Storage"),
+            (
+                "AppData/Roaming/Code/User/workspaceStorage",
+                "VS Code Workspace Storage",
+            ),
         ];
 
         for (rel_path, name) in vscode_paths {
@@ -326,9 +360,11 @@ impl IdeCleaner {
                 file_count: Some(file_count),
                 last_modified: None,
                 description: if is_workspace {
-                    "Workspace-specific cache. May include state for closed projects."
+                    Cow::Borrowed(
+                        "Workspace-specific cache. May include state for closed projects.",
+                    )
                 } else {
-                    "VS Code cache. Will be rebuilt on next open."
+                    Cow::Borrowed("VS Code cache. Will be rebuilt on next open.")
                 },
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: None,
@@ -344,10 +380,19 @@ impl IdeCleaner {
 
         #[cfg(target_os = "macos")]
         let cursor_paths = [
-            ("Library/Application Support/Cursor/CachedData", "Cursor Cached Data"),
+            (
+                "Library/Application Support/Cursor/CachedData",
+                "Cursor Cached Data",
+            ),
             ("Library/Application Support/Cursor/Cache", "Cursor Cache"),
-            ("Library/Application Support/Cursor/User/workspaceStorage", "Cursor Workspace Storage"),
-            ("Library/Caches/com.todesktop.230313mzl4w4u92", "Cursor System Cache"),
+            (
+                "Library/Application Support/Cursor/User/workspaceStorage",
+                "Cursor Workspace Storage",
+            ),
+            (
+                "Library/Caches/com.todesktop.230313mzl4w4u92",
+                "Cursor System Cache",
+            ),
         ];
 
         #[cfg(not(target_os = "macos"))]
@@ -373,7 +418,7 @@ impl IdeCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Cursor IDE cache. Will be rebuilt on next open.",
+                description: Cow::Borrowed("Cursor IDE cache. Will be rebuilt on next open."),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: None,
             });
@@ -388,8 +433,14 @@ impl IdeCleaner {
 
         #[cfg(target_os = "macos")]
         let sublime_paths = [
-            ("Library/Application Support/Sublime Text/Cache", "Sublime Cache"),
-            ("Library/Application Support/Sublime Text/Index", "Sublime Index"),
+            (
+                "Library/Application Support/Sublime Text/Cache",
+                "Sublime Cache",
+            ),
+            (
+                "Library/Application Support/Sublime Text/Index",
+                "Sublime Index",
+            ),
             ("Library/Caches/com.sublimetext.4", "Sublime System Cache"),
         ];
 
@@ -425,7 +476,7 @@ impl IdeCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Sublime Text cache and index files.",
+                description: Cow::Borrowed("Sublime Text cache and index files."),
                 safe_to_delete: SafetyLevel::Safe,
                 clean_command: None,
             });
@@ -440,23 +491,51 @@ impl IdeCleaner {
 
         #[cfg(target_os = "macos")]
         {
-            let zed_cache = self.home.join("Library/Caches/dev.zed.Zed");
-            if zed_cache.exists() {
-                let (size, file_count) = calculate_dir_size(&zed_cache)?;
-                if size > 50_000_000 {
-                    items.push(CleanableItem {
-                        name: "Zed Cache".to_string(),
-                        category: "IDE".to_string(),
-                        subcategory: "Zed".to_string(),
-                        icon: "⚡",
-                        path: zed_cache,
-                        size,
-                        file_count: Some(file_count),
-                        last_modified: None,
-                        description: "Zed editor cache files.",
-                        safe_to_delete: SafetyLevel::Safe,
-                        clean_command: None,
-                    });
+            let zed_paths = [
+                ("Library/Caches/dev.zed.Zed", "Zed Cache", SafetyLevel::Safe),
+                (
+                    "Library/Application Support/Zed/languages",
+                    "Zed Language Servers",
+                    SafetyLevel::SafeWithCost,
+                ),
+                (
+                    "Library/Application Support/Zed/extensions",
+                    "Zed Extensions Cache",
+                    SafetyLevel::SafeWithCost,
+                ),
+                (
+                    "Library/Application Support/Zed/copilot",
+                    "Zed Copilot Cache",
+                    SafetyLevel::Safe,
+                ),
+                (
+                    "Library/Application Support/Zed/node",
+                    "Zed Node Runtime",
+                    SafetyLevel::SafeWithCost,
+                ),
+            ];
+
+            for (rel_path, name, safety) in zed_paths {
+                let path = self.home.join(rel_path);
+                if path.exists() {
+                    let (size, file_count) = calculate_dir_size(&path)?;
+                    if size > 10_000_000 {
+                        items.push(CleanableItem {
+                            name: name.to_string(),
+                            category: "IDE".to_string(),
+                            subcategory: "Zed".to_string(),
+                            icon: "⚡",
+                            path,
+                            size,
+                            file_count: Some(file_count),
+                            last_modified: None,
+                            description: Cow::Borrowed(
+                                "Zed editor data. Will be re-downloaded on next open.",
+                            ),
+                            safe_to_delete: safety,
+                            clean_command: None,
+                        });
+                    }
                 }
             }
         }

@@ -10,6 +10,7 @@
 
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
 use crate::error::Result;
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -340,9 +341,7 @@ impl BinaryAnalyzer {
         ];
 
         // Add Python version-specific commands (3.7 through 3.14)
-        let python_versions: Vec<String> = (7..=14)
-            .map(|v| format!("python3.{}", v))
-            .collect();
+        let python_versions: Vec<String> = (7..=14).map(|v| format!("python3.{}", v)).collect();
         for v in &python_versions {
             commands.push(v.as_str());
         }
@@ -562,7 +561,10 @@ impl BinaryAnalyzer {
         }
 
         // Haskell
-        if path_str.contains(".ghcup/") || path_str.contains(".cabal/") || path_str.contains(".stack/") {
+        if path_str.contains(".ghcup/")
+            || path_str.contains(".cabal/")
+            || path_str.contains(".stack/")
+        {
             return BinarySource::Manual; // Haskell toolchain
         }
 
@@ -587,9 +589,11 @@ impl BinaryAnalyzer {
                     let name_str = name.to_string_lossy();
                     // Check in uv tools directory
                     if std::fs::read_dir(&uv_tools)
-                        .map(|entries| entries.filter_map(|e| e.ok()).any(|e| {
-                            e.file_name().to_string_lossy() == *name_str
-                        }))
+                        .map(|entries| {
+                            entries
+                                .filter_map(|e| e.ok())
+                                .any(|e| e.file_name().to_string_lossy() == *name_str)
+                        })
                         .unwrap_or(false)
                     {
                         return BinarySource::Uv;
@@ -693,8 +697,7 @@ impl BinaryAnalyzer {
         let first_line = text.lines().next()?;
 
         // Try to find version number pattern
-        let version_re =
-            regex::Regex::new(r"[vV]?(\d+\.\d+(?:\.\d+)?(?:-[a-zA-Z0-9.]+)?)").ok()?;
+        let version_re = regex::Regex::new(r"[vV]?(\d+\.\d+(?:\.\d+)?(?:-[a-zA-Z0-9.]+)?)").ok()?;
 
         if let Some(caps) = version_re.captures(first_line) {
             return Some(caps.get(1)?.as_str().to_string());
@@ -752,9 +755,7 @@ impl BinaryAnalyzer {
                 .filter_map(|i| i.version.as_deref())
                 .collect();
 
-            let has_system = instances
-                .iter()
-                .any(|i| i.source == BinarySource::System);
+            let has_system = instances.iter().any(|i| i.source == BinarySource::System);
             let has_active = instances.iter().any(|i| i.is_active);
 
             // Determine recommendation
@@ -768,10 +769,10 @@ impl BinaryAnalyzer {
 
                 if managers.len() > 1 {
                     DuplicateRecommendation::ConflictingManagers { managers }
-                } else if let Some(non_active_source) = sources
-                    .iter()
-                    .find(|s| **s != BinarySource::System && !instances.iter().any(|i| i.is_active && i.source == **s))
-                {
+                } else if let Some(non_active_source) = sources.iter().find(|s| {
+                    **s != BinarySource::System
+                        && !instances.iter().any(|i| i.is_active && i.source == **s)
+                }) {
                     DuplicateRecommendation::RemoveDuplicateSource {
                         source: *non_active_source,
                     }
@@ -836,8 +837,17 @@ impl BinaryAnalyzer {
     fn has_tool_versions_in_projects(&self) -> bool {
         // Common project directory names
         let project_dirs = [
-            "coding", "projects", "dev", "work", "code", "src",
-            "Documents", "Developer", "workspace", "repos", "git",
+            "coding",
+            "projects",
+            "dev",
+            "work",
+            "code",
+            "src",
+            "Documents",
+            "Developer",
+            "workspace",
+            "repos",
+            "git",
         ];
 
         for dir_name in project_dirs {
@@ -871,7 +881,11 @@ impl BinaryAnalyzer {
                 if path.is_dir() {
                     // Skip hidden dirs and common non-project dirs
                     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if name.starts_with('.') || name == "node_modules" || name == "target" || name == "venv" {
+                        if name.starts_with('.')
+                            || name == "node_modules"
+                            || name == "target"
+                            || name == "venv"
+                        {
                             continue;
                         }
                     }
@@ -899,7 +913,11 @@ impl BinaryAnalyzer {
             // Also check common project directories for .tool-versions
             let has_project_config = self.has_tool_versions_in_projects();
 
-            if !tool_versions.exists() && !mise_toml.exists() && !mise_config.exists() && !has_project_config {
+            if !tool_versions.exists()
+                && !mise_toml.exists()
+                && !mise_config.exists()
+                && !has_project_config
+            {
                 // mise installed but not configured anywhere
                 let (size, file_count) = calculate_dir_size(&mise_dir)?;
                 if size > 10_000_000 {
@@ -913,10 +931,14 @@ impl BinaryAnalyzer {
                         size,
                         file_count: Some(file_count),
                         last_modified: None,
-                        description: "mise installed but no config found in ~ or common project dirs",
+                        description: Cow::Borrowed(
+                            "mise installed but no config found in ~ or common project dirs",
+                        ),
                         // Changed to Caution - user should verify no projects use it
                         safe_to_delete: SafetyLevel::Caution,
-                        clean_command: Some("rm -rf ~/.local/share/mise ~/.local/bin/mise".to_string()),
+                        clean_command: Some(
+                            "rm -rf ~/.local/share/mise ~/.local/bin/mise".to_string(),
+                        ),
                     });
                 }
             }
@@ -949,7 +971,7 @@ impl BinaryAnalyzer {
                         size,
                         file_count: Some(file_count),
                         last_modified: None,
-                        description: "asdf installed but no tools or config found",
+                        description: Cow::Borrowed("asdf installed but no tools or config found"),
                         // Changed to Caution - user should verify
                         safe_to_delete: SafetyLevel::Caution,
                         clean_command: Some("rm -rf ~/.asdf".to_string()),
@@ -979,7 +1001,9 @@ impl BinaryAnalyzer {
                         size,
                         file_count: Some(file_count),
                         last_modified: None,
-                        description: "Volta installed but no Node.js versions configured",
+                        description: Cow::Borrowed(
+                            "Volta installed but no Node.js versions configured",
+                        ),
                         safe_to_delete: SafetyLevel::Safe,
                         clean_command: Some("rm -rf ~/.volta".to_string()),
                     });
@@ -1038,7 +1062,7 @@ impl BinaryAnalyzer {
                             size,
                             file_count: Some(file_count),
                             last_modified: get_mtime(&path),
-                            description: "Homebrew Python installed alongside pyenv. Consider using only one.",
+                            description: Cow::Borrowed("Homebrew Python installed alongside pyenv. Consider using only one."),
                             safe_to_delete: SafetyLevel::SafeWithCost,
                             clean_command: Some(format!("brew uninstall {}", name)),
                         });
@@ -1128,7 +1152,9 @@ impl BinaryAnalyzer {
                         size,
                         file_count: Some(file_count),
                         last_modified: get_mtime(&path),
-                        description: "Old Homebrew version. Run 'brew cleanup' to remove all old versions.",
+                        description: Cow::Borrowed(
+                            "Old Homebrew version. Run 'brew cleanup' to remove all old versions.",
+                        ),
                         safe_to_delete: SafetyLevel::Safe,
                         clean_command: Some("brew cleanup".to_string()),
                     });
@@ -1156,7 +1182,9 @@ impl BinaryAnalyzer {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "uv package manager cache. Safe to clean, packages will be re-downloaded.",
+                    description: Cow::Borrowed(
+                        "uv package manager cache. Safe to clean, packages will be re-downloaded.",
+                    ),
                     safe_to_delete: SafetyLevel::Safe,
                     clean_command: Some("uv cache clean".to_string()),
                 });
@@ -1173,7 +1201,8 @@ impl BinaryAnalyzer {
                         continue;
                     }
 
-                    let version = path.file_name()
+                    let version = path
+                        .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_else(|| "Unknown".to_string());
 
@@ -1188,7 +1217,7 @@ impl BinaryAnalyzer {
                             size,
                             file_count: Some(file_count),
                             last_modified: get_mtime(&path),
-                            description: "Python version managed by uv. Can be reinstalled with 'uv python install'.",
+                            description: Cow::Borrowed("Python version managed by uv. Can be reinstalled with 'uv python install'."),
                             safe_to_delete: SafetyLevel::SafeWithCost,
                             clean_command: None,
                         });
@@ -1207,9 +1236,7 @@ impl BinaryAnalyzer {
 
         let node_path = if homebrew_node.exists() {
             Some(homebrew_node)
-        } else if homebrew_node_intel.exists()
-            && self.is_homebrew_managed(&homebrew_node_intel)
-        {
+        } else if homebrew_node_intel.exists() && self.is_homebrew_managed(&homebrew_node_intel) {
             Some(homebrew_node_intel)
         } else {
             None
@@ -1217,7 +1244,10 @@ impl BinaryAnalyzer {
 
         if let Some(brew_node) = node_path {
             // Check if there's also a version manager node
-            let has_fnm = self.home.join("Library/Application Support/fnm/node-versions").exists()
+            let has_fnm = self
+                .home
+                .join("Library/Application Support/fnm/node-versions")
+                .exists()
                 || self.home.join(".local/share/fnm/node-versions").exists();
             let has_nvm = self.home.join(".nvm/versions/node").exists();
             let has_volta = self.home.join(".volta/tools/image/node").exists();
@@ -1251,7 +1281,7 @@ impl BinaryAnalyzer {
                         size,
                         file_count: Some(file_count),
                         last_modified: None,
-                        description: "Homebrew Node.js installed alongside a version manager. Consider removing one.",
+                        description: Cow::Borrowed("Homebrew Node.js installed alongside a version manager. Consider removing one."),
                         safe_to_delete: SafetyLevel::SafeWithCost,
                         clean_command: Some("brew uninstall node".to_string()),
                     });
@@ -1295,11 +1325,11 @@ impl BinaryAnalyzer {
                         subcategory: "Stale Config".to_string(),
                         icon: "⚠️",
                         // SAFETY: Use non-existent path to prevent accidental deletion of rc file
-                        path: self.home.join(".devsweep-manual-edit-required"),
+                        path: self.home.join(".null-e-manual-edit-required"),
                         size: 0,
                         file_count: None,
                         last_modified: get_mtime(&rc_file),
-                        description: "NVM in shell rc but not installed. MANUAL EDIT REQUIRED - DO NOT DELETE!",
+                        description: Cow::Borrowed("NVM in shell rc but not installed. MANUAL EDIT REQUIRED - DO NOT DELETE!"),
                         safe_to_delete: SafetyLevel::Dangerous,
                         clean_command: Some(format!(
                             "Manual: Edit {} and remove NVM_DIR/nvm.sh lines",
@@ -1321,11 +1351,11 @@ impl BinaryAnalyzer {
                         subcategory: "Stale Config".to_string(),
                         icon: "⚠️",
                         // SAFETY: Use non-existent path to prevent accidental deletion of rc file
-                        path: self.home.join(".devsweep-manual-edit-required"),
+                        path: self.home.join(".null-e-manual-edit-required"),
                         size: 0,
                         file_count: None,
                         last_modified: get_mtime(&rc_file),
-                        description: "pyenv in shell rc but not installed. MANUAL EDIT REQUIRED - DO NOT DELETE!",
+                        description: Cow::Borrowed("pyenv in shell rc but not installed. MANUAL EDIT REQUIRED - DO NOT DELETE!"),
                         safe_to_delete: SafetyLevel::Dangerous,
                         clean_command: Some(format!(
                             "Manual: Edit {} and remove PYENV_ROOT/pyenv init lines",
@@ -1347,11 +1377,11 @@ impl BinaryAnalyzer {
                         subcategory: "Stale Config".to_string(),
                         icon: "⚠️",
                         // SAFETY: Use non-existent path to prevent accidental deletion of rc file
-                        path: self.home.join(".devsweep-manual-edit-required"),
+                        path: self.home.join(".null-e-manual-edit-required"),
                         size: 0,
                         file_count: None,
                         last_modified: get_mtime(&rc_file),
-                        description: "rbenv in shell rc but not installed. MANUAL EDIT REQUIRED - DO NOT DELETE!",
+                        description: Cow::Borrowed("rbenv in shell rc but not installed. MANUAL EDIT REQUIRED - DO NOT DELETE!"),
                         safe_to_delete: SafetyLevel::Dangerous,
                         clean_command: Some(format!(
                             "Manual: Edit {} and remove RBENV_ROOT/rbenv init lines",
@@ -1372,7 +1402,11 @@ impl BinaryAnalyzer {
         // Add duplicate groups
         for group in &result.duplicates {
             // Skip if only system binary or all are active
-            if group.instances.iter().all(|i| i.is_active || i.source == BinarySource::System) {
+            if group
+                .instances
+                .iter()
+                .all(|i| i.is_active || i.source == BinarySource::System)
+            {
                 continue;
             }
 
@@ -1420,10 +1454,6 @@ impl BinaryAnalyzer {
 
                 let clean_command = self.get_clean_command(instance);
 
-                // Leak the description string to get a static reference
-                // This is safe because we're in a controlled context
-                let description_static: &'static str = Box::leak(description.into_boxed_str());
-
                 items.push(CleanableItem {
                     name: format!(
                         "{} {} ({})",
@@ -1438,7 +1468,7 @@ impl BinaryAnalyzer {
                     size,
                     file_count: None,
                     last_modified: get_mtime(&instance.path),
-                    description: description_static,
+                    description: Cow::Owned(description),
                     safe_to_delete: group.safety,
                     clean_command,
                 });
@@ -1467,7 +1497,9 @@ impl BinaryAnalyzer {
             if parts.len() > 1 {
                 let version = parts[1].split('/').next()?;
                 #[cfg(target_os = "macos")]
-                let base = self.home.join("Library/Application Support/fnm/node-versions");
+                let base = self
+                    .home
+                    .join("Library/Application Support/fnm/node-versions");
                 #[cfg(not(target_os = "macos"))]
                 let base = self.home.join(".local/share/fnm/node-versions");
                 return Some(base.join(version));
@@ -1517,10 +1549,7 @@ impl BinaryAnalyzer {
     /// Get clean command for a binary instance
     fn get_clean_command(&self, instance: &BinaryInstance) -> Option<String> {
         match instance.source {
-            BinarySource::Homebrew => Some(format!(
-                "brew uninstall {}",
-                instance.command
-            )),
+            BinarySource::Homebrew => Some(format!("brew uninstall {}", instance.command)),
             BinarySource::Nvm => instance
                 .version
                 .as_ref()
@@ -1603,17 +1632,16 @@ mod tests {
             BinarySource::Homebrew
         );
         assert_eq!(
-            analyzer.determine_source(Path::new("/opt/homebrew/Cellar/python@3.12/3.12.0/bin/python3")),
+            analyzer.determine_source(Path::new(
+                "/opt/homebrew/Cellar/python@3.12/3.12.0/bin/python3"
+            )),
             BinarySource::Homebrew
         );
 
         // Cargo
         let home = dirs::home_dir().unwrap();
         let cargo_path = home.join(".cargo/bin/rg");
-        assert_eq!(
-            analyzer.determine_source(&cargo_path),
-            BinarySource::Cargo
-        );
+        assert_eq!(analyzer.determine_source(&cargo_path), BinarySource::Cargo);
     }
 
     #[test]
@@ -1637,10 +1665,7 @@ mod tests {
             println!("Found {} duplicate groups", result.duplicates.len());
             println!("Found {} unused managers", result.unused_managers.len());
             println!("Found {} stale configs", result.stale_configs.len());
-            println!(
-                "Potential savings: {} bytes",
-                result.potential_savings
-            );
+            println!("Potential savings: {} bytes", result.potential_savings);
 
             for dup in &result.duplicates {
                 println!(

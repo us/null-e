@@ -23,7 +23,7 @@ pub struct StaleProjectFinder {
 impl Default for StaleProjectFinder {
     fn default() -> Self {
         Self {
-            stale_threshold_days: 180, // 6 months
+            stale_threshold_days: 180,     // 6 months
             min_project_size: 100_000_000, // 100MB
         }
     }
@@ -155,13 +155,13 @@ impl StaleProjectFinder {
             .filter_entry(|e| {
                 let name = e.file_name().to_string_lossy();
                 // Skip common non-project directories
-                name != "node_modules" &&
-                name != ".cargo" &&
-                name != "target" &&
-                name != "venv" &&
-                name != ".venv" &&
-                name != ".git" &&
-                name != "vendor"
+                name != "node_modules"
+                    && name != ".cargo"
+                    && name != "target"
+                    && name != "venv"
+                    && name != ".venv"
+                    && name != ".git"
+                    && name != "vendor"
             })
             .filter_map(|e| e.ok())
         {
@@ -314,6 +314,11 @@ impl StaleProjectFinder {
             .ok()?
             .as_secs() as i64;
 
+        // Guard against future timestamps (clock skew)
+        if timestamp > now {
+            return Some((0, String::new()));
+        }
+
         let days = ((now - timestamp) / 86400) as u64;
 
         // Get formatted date
@@ -416,7 +421,10 @@ mod tests {
     fn test_stale_scan() {
         let finder = StaleProjectFinder::with_threshold(30); // 30 days for testing
         if let Ok(recommendations) = finder.scan(Path::new("."), 2) {
-            println!("Found {} stale project recommendations", recommendations.len());
+            println!(
+                "Found {} stale project recommendations",
+                recommendations.len()
+            );
             for rec in &recommendations {
                 println!("  {} - {}", rec.title, rec.description);
             }

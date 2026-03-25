@@ -5,8 +5,8 @@ use std::sync::Arc;
 use tempfile::TempDir;
 
 // Import from the library
-use null_e::prelude::*;
 use null_e::plugins::*;
+use null_e::prelude::*;
 
 /// Helper to create a mock Node.js project
 fn create_node_project(path: &std::path::Path) {
@@ -50,7 +50,11 @@ fn create_python_project(path: &std::path::Path) {
     // Create a venv
     let venv = path.join(".venv");
     std::fs::create_dir(&venv).unwrap();
-    std::fs::write(venv.join("pyvenv.cfg"), "home = /usr/bin\ninclude-system-site-packages = false\n").unwrap();
+    std::fs::write(
+        venv.join("pyvenv.cfg"),
+        "home = /usr/bin\ninclude-system-site-packages = false\n",
+    )
+    .unwrap();
 
     // Create __pycache__
     std::fs::create_dir(path.join("__pycache__")).unwrap();
@@ -390,8 +394,7 @@ fn test_protection_blocks_uncommitted() {
         ..Default::default()
     });
 
-    let result =
-        null_e::git::check_project_protection(&project, ProtectionLevel::Block);
+    let result = null_e::git::check_project_protection(&project, ProtectionLevel::Block);
 
     assert!(!result.allowed);
     assert!(result.blocked_reason.is_some());
@@ -407,8 +410,7 @@ fn test_protection_warns_uncommitted() {
         ..Default::default()
     });
 
-    let result =
-        null_e::git::check_project_protection(&project, ProtectionLevel::Warn);
+    let result = null_e::git::check_project_protection(&project, ProtectionLevel::Warn);
 
     assert!(result.allowed);
     assert!(result.has_warnings());
@@ -424,8 +426,7 @@ fn test_protection_none_allows_everything() {
         ..Default::default()
     });
 
-    let result =
-        null_e::git::check_project_protection(&project, ProtectionLevel::None);
+    let result = null_e::git::check_project_protection(&project, ProtectionLevel::None);
 
     assert!(result.allowed);
     assert!(!result.has_warnings());
@@ -451,10 +452,7 @@ fn test_config_serialization_roundtrip() {
     let loaded: null_e::config::Config = toml::from_str(&toml_str).unwrap();
 
     assert_eq!(config.clean.delete_method, loaded.clean.delete_method);
-    assert_eq!(
-        config.clean.protection_level,
-        loaded.clean.protection_level
-    );
+    assert_eq!(config.clean.protection_level, loaded.clean.protection_level);
 }
 
 // ============================================================================

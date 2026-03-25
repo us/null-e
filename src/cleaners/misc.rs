@@ -10,6 +10,7 @@
 
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
 use crate::error::Result;
+use std::borrow::Cow;
 use std::path::PathBuf;
 
 /// Miscellaneous tools cleaner
@@ -76,12 +77,14 @@ impl MiscCleaner {
                 for entry in entries.filter_map(|e| e.ok()) {
                     let path = entry.path();
                     if path.is_dir() {
-                        let name = path.file_name()
+                        let name = path
+                            .file_name()
                             .map(|n| n.to_string_lossy().to_string())
                             .unwrap_or_else(|| "Unknown".to_string());
 
                         let (size, file_count) = calculate_dir_size(&path)?;
-                        if size < 100_000_000 { // Skip small boxes
+                        if size < 100_000_000 {
+                            // Skip small boxes
                             continue;
                         }
 
@@ -94,7 +97,9 @@ impl MiscCleaner {
                             size,
                             file_count: Some(file_count),
                             last_modified: get_mtime(&entry.path()),
-                            description: "Vagrant base box. Can be re-downloaded if needed.",
+                            description: Cow::Borrowed(
+                                "Vagrant base box. Can be re-downloaded if needed.",
+                            ),
                             safe_to_delete: SafetyLevel::SafeWithCost,
                             clean_command: Some(format!("vagrant box remove {}", name)),
                         });
@@ -117,7 +122,7 @@ impl MiscCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Temporary Vagrant files. Safe to delete.",
+                    description: Cow::Borrowed("Temporary Vagrant files. Safe to delete."),
                     safe_to_delete: SafetyLevel::Safe,
                     clean_command: None,
                 });
@@ -142,7 +147,8 @@ impl MiscCleaner {
             }
 
             let (size, file_count) = calculate_dir_size(&lfs_path)?;
-            if size < 100_000_000 { // 100MB minimum
+            if size < 100_000_000 {
+                // 100MB minimum
                 continue;
             }
 
@@ -155,7 +161,9 @@ impl MiscCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Git Large File Storage cache. Will be re-downloaded when needed.",
+                description: Cow::Borrowed(
+                    "Git Large File Storage cache. Will be re-downloaded when needed.",
+                ),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: Some("git lfs prune".to_string()),
             });
@@ -187,7 +195,9 @@ impl MiscCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Downloaded Go modules. Will be re-downloaded when needed.",
+                    description: Cow::Borrowed(
+                        "Downloaded Go modules. Will be re-downloaded when needed.",
+                    ),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: Some("go clean -modcache".to_string()),
                 });
@@ -204,13 +214,18 @@ impl MiscCleaner {
                 return self.home.join(".cache/go-build");
                 #[cfg(target_os = "windows")]
                 return self.home.join("AppData/Local/go-build");
-                #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+                #[cfg(not(any(
+                    target_os = "macos",
+                    target_os = "linux",
+                    target_os = "windows"
+                )))]
                 return self.home.join(".cache/go-build");
             });
 
         if gocache.exists() {
             let (size, file_count) = calculate_dir_size(&gocache)?;
-            if size > 500_000_000 { // 500MB
+            if size > 500_000_000 {
+                // 500MB
                 items.push(CleanableItem {
                     name: "Go Build Cache".to_string(),
                     category: "Go".to_string(),
@@ -220,7 +235,9 @@ impl MiscCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Go build cache. Will slow down first build after deletion.",
+                    description: Cow::Borrowed(
+                        "Go build cache. Will slow down first build after deletion.",
+                    ),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: Some("go clean -cache".to_string()),
                 });
@@ -237,7 +254,7 @@ impl MiscCleaner {
         // Global gems
         let gem_paths = [
             self.home.join(".gem"),
-            self.home.join(".local/share/gem"), // Linux
+            self.home.join(".local/share/gem"),  // Linux
             self.home.join("AppData/Local/gem"), // Windows
         ];
 
@@ -260,7 +277,7 @@ impl MiscCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Installed Ruby gems. Will be reinstalled when needed.",
+                description: Cow::Borrowed("Installed Ruby gems. Will be reinstalled when needed."),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: Some("gem cleanup".to_string()),
             });
@@ -280,7 +297,7 @@ impl MiscCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Bundler download cache. Safe to delete.",
+                    description: Cow::Borrowed("Bundler download cache. Safe to delete."),
                     safe_to_delete: SafetyLevel::Safe,
                     clean_command: Some("bundle clean --force".to_string()),
                 });
@@ -294,7 +311,8 @@ impl MiscCleaner {
                 for entry in entries.filter_map(|e| e.ok()) {
                     let path = entry.path();
                     if path.is_dir() {
-                        let name = path.file_name()
+                        let name = path
+                            .file_name()
                             .map(|n| n.to_string_lossy().to_string())
                             .unwrap_or_else(|| "Unknown".to_string());
 
@@ -312,7 +330,7 @@ impl MiscCleaner {
                             size,
                             file_count: Some(file_count),
                             last_modified: get_mtime(&entry.path()),
-                            description: "Installed Ruby version via rbenv.",
+                            description: Cow::Borrowed("Installed Ruby version via rbenv."),
                             safe_to_delete: SafetyLevel::Caution,
                             clean_command: Some(format!("rbenv uninstall {}", name)),
                         });
@@ -340,7 +358,8 @@ impl MiscCleaner {
             }
 
             let (size, file_count) = calculate_dir_size(&nuget_path)?;
-            if size < 500_000_000 { // 500MB
+            if size < 500_000_000 {
+                // 500MB
                 continue;
             }
 
@@ -353,7 +372,9 @@ impl MiscCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "NuGet package cache. Will be re-downloaded when needed.",
+                description: Cow::Borrowed(
+                    "NuGet package cache. Will be re-downloaded when needed.",
+                ),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: Some("dotnet nuget locals all --clear".to_string()),
             });
@@ -362,7 +383,7 @@ impl MiscCleaner {
         // .NET SDK workloads
         let workload_paths = [
             PathBuf::from("/usr/local/share/dotnet/metadata"), // macOS/Linux
-            self.home.join("AppData/Local/Microsoft/dotnet"), // Windows
+            self.home.join("AppData/Local/Microsoft/dotnet"),  // Windows
         ];
 
         for workload_path in workload_paths {
@@ -384,7 +405,7 @@ impl MiscCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: ".NET SDK workloads. May affect installed SDKs.",
+                description: Cow::Borrowed(".NET SDK workloads. May affect installed SDKs."),
                 safe_to_delete: SafetyLevel::Caution,
                 clean_command: None,
             });
@@ -399,7 +420,7 @@ impl MiscCleaner {
 
         let composer_paths = [
             self.home.join(".composer/cache"),
-            self.home.join(".cache/composer"), // Linux
+            self.home.join(".cache/composer"),              // Linux
             self.home.join("AppData/Local/Composer/cache"), // Windows
         ];
 
@@ -422,7 +443,9 @@ impl MiscCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "PHP Composer package cache. Will be re-downloaded when needed.",
+                description: Cow::Borrowed(
+                    "PHP Composer package cache. Will be re-downloaded when needed.",
+                ),
                 safe_to_delete: SafetyLevel::Safe,
                 clean_command: Some("composer clear-cache".to_string()),
             });
@@ -460,7 +483,9 @@ impl MiscCleaner {
                 size,
                 file_count: Some(file_count),
                 last_modified: None,
-                description: "Scala dependency cache. Will be re-downloaded when needed.",
+                description: Cow::Borrowed(
+                    "Scala dependency cache. Will be re-downloaded when needed.",
+                ),
                 safe_to_delete: SafetyLevel::SafeWithCost,
                 clean_command: None,
             });
@@ -481,7 +506,8 @@ impl MiscCleaner {
         let cache_path = gradle_home.join("caches");
         if cache_path.exists() {
             let (size, file_count) = calculate_dir_size(&cache_path)?;
-            if size > 1_000_000_000 { // 1GB
+            if size > 1_000_000_000 {
+                // 1GB
                 items.push(CleanableItem {
                     name: "Gradle Cache".to_string(),
                     category: "Java/Kotlin".to_string(),
@@ -491,7 +517,9 @@ impl MiscCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Gradle dependency cache. Will be re-downloaded when needed.",
+                    description: Cow::Borrowed(
+                        "Gradle dependency cache. Will be re-downloaded when needed.",
+                    ),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: Some("gradle --stop && rm -rf ~/.gradle/caches".to_string()),
                 });
@@ -502,7 +530,8 @@ impl MiscCleaner {
         let wrapper_path = gradle_home.join("wrapper/dists");
         if wrapper_path.exists() {
             let (size, file_count) = calculate_dir_size(&wrapper_path)?;
-            if size > 500_000_000 { // 500MB
+            if size > 500_000_000 {
+                // 500MB
                 items.push(CleanableItem {
                     name: "Gradle Wrapper Distributions".to_string(),
                     category: "Java/Kotlin".to_string(),
@@ -512,7 +541,9 @@ impl MiscCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Downloaded Gradle distributions. Will be re-downloaded when needed.",
+                    description: Cow::Borrowed(
+                        "Downloaded Gradle distributions. Will be re-downloaded when needed.",
+                    ),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: None,
                 });
@@ -533,7 +564,7 @@ impl MiscCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Gradle daemon logs and state. Safe to delete.",
+                    description: Cow::Borrowed("Gradle daemon logs and state. Safe to delete."),
                     safe_to_delete: SafetyLevel::Safe,
                     clean_command: Some("gradle --stop".to_string()),
                 });
@@ -550,7 +581,8 @@ impl MiscCleaner {
         let m2_repo = self.home.join(".m2/repository");
         if m2_repo.exists() {
             let (size, file_count) = calculate_dir_size(&m2_repo)?;
-            if size > 1_000_000_000 { // 1GB
+            if size > 1_000_000_000 {
+                // 1GB
                 items.push(CleanableItem {
                     name: "Maven Repository".to_string(),
                     category: "Java/Kotlin".to_string(),
@@ -560,7 +592,9 @@ impl MiscCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Maven local repository. Dependencies will be re-downloaded.",
+                    description: Cow::Borrowed(
+                        "Maven local repository. Dependencies will be re-downloaded.",
+                    ),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: Some("mvn dependency:purge-local-repository".to_string()),
                 });
@@ -577,7 +611,8 @@ impl MiscCleaner {
         let sbt_path = self.home.join(".sbt");
         if sbt_path.exists() {
             let (size, file_count) = calculate_dir_size(&sbt_path)?;
-            if size > 500_000_000 { // 500MB
+            if size > 500_000_000 {
+                // 500MB
                 items.push(CleanableItem {
                     name: "SBT Cache".to_string(),
                     category: "Scala".to_string(),
@@ -587,7 +622,9 @@ impl MiscCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "SBT cache and plugins. Will slow down first build after deletion.",
+                    description: Cow::Borrowed(
+                        "SBT cache and plugins. Will slow down first build after deletion.",
+                    ),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: None,
                 });
@@ -608,7 +645,9 @@ impl MiscCleaner {
                     size,
                     file_count: Some(file_count),
                     last_modified: None,
-                    description: "Ivy dependency cache (used by SBT). Will be re-downloaded.",
+                    description: Cow::Borrowed(
+                        "Ivy dependency cache (used by SBT). Will be re-downloaded.",
+                    ),
                     safe_to_delete: SafetyLevel::SafeWithCost,
                     clean_command: None,
                 });

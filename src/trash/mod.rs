@@ -10,7 +10,7 @@ pub use platform::*;
 pub use record::*;
 
 use crate::core::{Artifact, CleanResult};
-use crate::error::{DevSweepError, Result};
+use crate::error::{NullEError, Result};
 use std::path::Path;
 
 /// Delete method for cleanup operations
@@ -27,7 +27,7 @@ pub enum DeleteMethod {
 
 impl DeleteMethod {
     /// Parse from string
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "trash" => Some(Self::Trash),
             "permanent" | "delete" | "rm" => Some(Self::Permanent),
@@ -51,9 +51,8 @@ pub fn delete_path(path: &Path, method: DeleteMethod) -> Result<u64> {
         }
         DeleteMethod::Trash => {
             let size = calculate_size(path)?;
-            trash::delete(path).map_err(|e| {
-                DevSweepError::Trash(format!("Failed to move to trash: {}", e))
-            })?;
+            trash::delete(path)
+                .map_err(|e| NullEError::Trash(format!("Failed to move to trash: {}", e)))?;
             Ok(size)
         }
         DeleteMethod::Permanent => {
@@ -83,12 +82,10 @@ fn calculate_size(path: &Path) -> Result<u64> {
     }
 
     let mut size = 0u64;
-    for entry in walkdir::WalkDir::new(path) {
-        if let Ok(entry) = entry {
-            if entry.file_type().is_file() {
-                if let Ok(meta) = entry.metadata() {
-                    size += meta.len();
-                }
+    for entry in walkdir::WalkDir::new(path).into_iter().flatten() {
+        if entry.file_type().is_file() {
+            if let Ok(meta) = entry.metadata() {
+                size += meta.len();
             }
         }
     }
@@ -102,10 +99,13 @@ mod tests {
 
     #[test]
     fn test_delete_method_from_str() {
-        assert_eq!(DeleteMethod::from_str("trash"), Some(DeleteMethod::Trash));
-        assert_eq!(DeleteMethod::from_str("permanent"), Some(DeleteMethod::Permanent));
-        assert_eq!(DeleteMethod::from_str("dry-run"), Some(DeleteMethod::DryRun));
-        assert_eq!(DeleteMethod::from_str("invalid"), None);
+        assert_eq!(DeleteMethod::parse("trash"), Some(DeleteMethod::Trash));
+        assert_eq!(
+            DeleteMethod::parse("permanent"),
+            Some(DeleteMethod::Permanent)
+        );
+        assert_eq!(DeleteMethod::parse("dry-run"), Some(DeleteMethod::DryRun));
+        assert_eq!(DeleteMethod::parse("invalid"), None);
     }
 
     #[test]

@@ -3,7 +3,7 @@
 //! Check for uncommitted changes, untracked files, etc.
 
 use crate::core::GitStatus;
-use crate::error::{DevSweepError, Result};
+use crate::error::{NullEError, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -130,7 +130,7 @@ pub fn is_git_tracked(repo_root: &Path, path: &Path) -> Result<bool> {
         .args(["ls-files", &relative])
         .current_dir(repo_root)
         .output()
-        .map_err(|e| DevSweepError::Git(e.to_string()))?;
+        .map_err(|e| NullEError::Git(e.to_string()))?;
 
     Ok(output.status.success() && !output.stdout.is_empty())
 }

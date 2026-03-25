@@ -90,11 +90,7 @@ pub fn render(app: &mut App, frame: &mut Frame) {
 
 /// Render the header
 fn render_header(app: &App, frame: &mut Frame, area: Rect) {
-    let title = format!(
-        " {} null-e v{} ",
-        ROBOT_SMALL,
-        env!("CARGO_PKG_VERSION")
-    );
+    let title = format!(" {} null-e v{} ", ROBOT_SMALL, env!("CARGO_PKG_VERSION"));
 
     let total_info = if app.total_size > 0 {
         format!("Total: {} ", format_size(app.total_size))
@@ -103,7 +99,12 @@ fn render_header(app: &App, frame: &mut Frame, area: Rect) {
     };
 
     let header = Paragraph::new(Line::from(vec![
-        Span::styled(title, Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+        Span::styled(
+            title,
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        ),
         Span::raw(" - The friendly disk cleanup robot"),
         Span::raw(" ".repeat(area.width.saturating_sub(60) as usize)),
         Span::styled(total_info, Style::default().fg(Color::Yellow)),
@@ -162,16 +163,36 @@ fn render_ready_screen(app: &App, frame: &mut Frame, area: Rect) {
     // Robot ASCII art - each line separate
     let robot_lines = vec![
         Line::from(""),
-        Line::from(Span::styled("       .---.      ", Style::default().fg(Color::Green))),
-        Line::from(Span::styled("      |o   o|     ", Style::default().fg(Color::Green))),
-        Line::from(Span::styled("      |  ^  |     ", Style::default().fg(Color::Green))),
-        Line::from(Span::styled("      | === |     ", Style::default().fg(Color::Green))),
-        Line::from(Span::styled("      `-----'     ", Style::default().fg(Color::Green))),
-        Line::from(Span::styled("       /| |\\      ", Style::default().fg(Color::Green))),
+        Line::from(Span::styled(
+            "       .---.      ",
+            Style::default().fg(Color::Green),
+        )),
+        Line::from(Span::styled(
+            "      |o   o|     ",
+            Style::default().fg(Color::Green),
+        )),
+        Line::from(Span::styled(
+            "      |  ^  |     ",
+            Style::default().fg(Color::Green),
+        )),
+        Line::from(Span::styled(
+            "      | === |     ",
+            Style::default().fg(Color::Green),
+        )),
+        Line::from(Span::styled(
+            "      `-----'     ",
+            Style::default().fg(Color::Green),
+        )),
+        Line::from(Span::styled(
+            "       /| |\\      ",
+            Style::default().fg(Color::Green),
+        )),
         Line::from(""),
         Line::from(Span::styled(
             "  Welcome to null-e!",
-            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from(Span::styled(
@@ -269,16 +290,36 @@ fn render_scanning_screen(app: &App, frame: &mut Frame, area: Rect) {
     let text = vec![
         Line::from(""),
         Line::from(""),
-        Line::from(Span::styled("       .---.      ", Style::default().fg(Color::Green))),
-        Line::from(Span::styled("      |o   o|     ", Style::default().fg(Color::Green))),
-        Line::from(Span::styled("      |  ^  |     ", Style::default().fg(Color::Green))),
-        Line::from(Span::styled("      | === |     ", Style::default().fg(Color::Green))),
-        Line::from(Span::styled("      `-----'     ", Style::default().fg(Color::Green))),
-        Line::from(Span::styled("       /| |\\      ", Style::default().fg(Color::Green))),
+        Line::from(Span::styled(
+            "       .---.      ",
+            Style::default().fg(Color::Green),
+        )),
+        Line::from(Span::styled(
+            "      |o   o|     ",
+            Style::default().fg(Color::Green),
+        )),
+        Line::from(Span::styled(
+            "      |  ^  |     ",
+            Style::default().fg(Color::Green),
+        )),
+        Line::from(Span::styled(
+            "      | === |     ",
+            Style::default().fg(Color::Green),
+        )),
+        Line::from(Span::styled(
+            "      `-----'     ",
+            Style::default().fg(Color::Green),
+        )),
+        Line::from(Span::styled(
+            "       /| |\\      ",
+            Style::default().fg(Color::Green),
+        )),
         Line::from(""),
         Line::from(Span::styled(
             format!("  {} {}  ", spinner_frames[spinner_idx], app.scan_message),
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from(Span::styled(
@@ -298,7 +339,11 @@ fn render_scanning_screen(app: &App, frame: &mut Frame, area: Rect) {
     ];
 
     let paragraph = Paragraph::new(text)
-        .block(Block::default().borders(Borders::ALL).title(" 🔍 Scanning "))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" 🔍 Scanning "),
+        )
         .alignment(Alignment::Center);
 
     frame.render_widget(paragraph, area);
@@ -376,10 +421,7 @@ fn render_results(app: &mut App, frame: &mut Frame, area: Rect) {
                     format!("{:<30}", truncate(name, 30)),
                     Style::default().fg(Color::White),
                 ),
-                Span::styled(
-                    format!("{:>10}", size),
-                    Style::default().fg(Color::Yellow),
-                ),
+                Span::styled(format!("{:>10}", size), Style::default().fg(Color::Yellow)),
                 Span::styled(format!("  {}", age), Style::default().fg(Color::Gray)),
             ];
 
@@ -406,10 +448,7 @@ fn render_results(app: &mut App, frame: &mut Frame, area: Rect) {
                             Style::default().fg(Color::Cyan),
                         ),
                         Span::raw(" "),
-                        Span::styled(
-                            format_size(artifact.size),
-                            Style::default().fg(Color::Gray),
-                        ),
+                        Span::styled(format_size(artifact.size), Style::default().fg(Color::Gray)),
                     ]));
                 }
             }
@@ -419,15 +458,11 @@ fn render_results(app: &mut App, frame: &mut Frame, area: Rect) {
         .collect();
 
     let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(format!(
-                    " Projects ({}/{}) Esc=back ",
-                    app.visible_count(),
-                    app.projects.len()
-                )),
-        )
+        .block(Block::default().borders(Borders::ALL).title(format!(
+            " Projects ({}/{}) Esc=back ",
+            app.visible_count(),
+            app.projects.len()
+        )))
         .highlight_style(Style::default().bg(Color::DarkGray));
 
     frame.render_widget(list, area);
@@ -438,8 +473,8 @@ fn render_results(app: &mut App, frame: &mut Frame, area: Rect) {
             .begin_symbol(Some("↑"))
             .end_symbol(Some("↓"));
 
-        let mut scrollbar_state = ScrollbarState::new(visible_projects.len())
-            .position(app.scroll_offset);
+        let mut scrollbar_state =
+            ScrollbarState::new(visible_projects.len()).position(app.scroll_offset);
 
         frame.render_stateful_widget(
             scrollbar,
@@ -459,13 +494,18 @@ fn render_cache_results(app: &mut App, frame: &mut Frame, area: Rect) {
 
     if app.caches.is_empty() {
         let paragraph = Paragraph::new("No caches found. Press 'b' to go back.")
-            .block(Block::default().borders(Borders::ALL).title(" Global Caches "))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(" Global Caches "),
+            )
             .alignment(Alignment::Center);
         frame.render_widget(paragraph, area);
         return;
     }
 
-    let items: Vec<ListItem> = app.caches
+    let items: Vec<ListItem> = app
+        .caches
         .iter()
         .enumerate()
         .skip(app.scroll_offset)
@@ -475,7 +515,9 @@ fn render_cache_results(app: &mut App, frame: &mut Frame, area: Rect) {
             let checkbox = if cache.selected { "☑" } else { "☐" };
 
             let line_style = if is_selected {
-                Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
             };
@@ -499,7 +541,8 @@ fn render_cache_results(app: &mut App, frame: &mut Frame, area: Rect) {
                         format!("{:>12}", format_size(cache.size)),
                         Style::default().fg(Color::Yellow),
                     ),
-                ]).style(line_style),
+                ])
+                .style(line_style),
                 Line::from(vec![
                     Span::raw("      "),
                     Span::styled(&cache.description, Style::default().fg(Color::DarkGray)),
@@ -510,12 +553,11 @@ fn render_cache_results(app: &mut App, frame: &mut Frame, area: Rect) {
         })
         .collect();
 
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(format!(" Global Caches ({}) Esc=back ", app.caches.len())),
-        );
+    let list = List::new(items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(format!(" Global Caches ({}) Esc=back ", app.caches.len())),
+    );
 
     frame.render_widget(list, area);
 }
@@ -527,13 +569,18 @@ fn render_cleaner_results(app: &mut App, frame: &mut Frame, area: Rect) {
 
     if app.cleaners.is_empty() {
         let paragraph = Paragraph::new("No items found. Press 'b' to go back.")
-            .block(Block::default().borders(Borders::ALL).title(format!(" {} ", app.scan_mode.name())))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(format!(" {} ", app.scan_mode.name())),
+            )
             .alignment(Alignment::Center);
         frame.render_widget(paragraph, area);
         return;
     }
 
-    let items: Vec<ListItem> = app.cleaners
+    let items: Vec<ListItem> = app
+        .cleaners
         .iter()
         .enumerate()
         .skip(app.scroll_offset)
@@ -543,7 +590,9 @@ fn render_cleaner_results(app: &mut App, frame: &mut Frame, area: Rect) {
             let checkbox = if item.selected { "☑" } else { "☐" };
 
             let line_style = if is_selected {
-                Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
             };
@@ -567,7 +616,8 @@ fn render_cleaner_results(app: &mut App, frame: &mut Frame, area: Rect) {
                         format!("{:>12}", format_size(item.size)),
                         Style::default().fg(Color::Yellow),
                     ),
-                ]).style(line_style),
+                ])
+                .style(line_style),
                 Line::from(vec![
                     Span::raw("      "),
                     Span::styled(&item.category, Style::default().fg(Color::Cyan)),
@@ -583,12 +633,11 @@ fn render_cleaner_results(app: &mut App, frame: &mut Frame, area: Rect) {
         })
         .collect();
 
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(format!(" {} ({}) Esc=back ", app.scan_mode.name(), app.cleaners.len())),
-        );
+    let list = List::new(items).block(Block::default().borders(Borders::ALL).title(format!(
+        " {} ({}) Esc=back ",
+        app.scan_mode.name(),
+        app.cleaners.len()
+    )));
 
     frame.render_widget(list, area);
 }
@@ -599,9 +648,7 @@ fn render_error_screen(message: &str, frame: &mut Frame, area: Rect) {
         Line::from(""),
         Line::from(Span::styled(
             "⚠ Error",
-            Style::default()
-                .fg(Color::Red)
-                .add_modifier(Modifier::BOLD),
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         )),
         Line::from(""),
         Line::from(message),
@@ -642,21 +689,18 @@ fn render_cleaning_screen(app: &App, frame: &mut Frame, area: Rect) {
         .direction(Direction::Vertical)
         .margin(2)
         .constraints([
-            Constraint::Length(3),  // Title
-            Constraint::Length(2),  // Spacer
-            Constraint::Length(3),  // Progress bar
-            Constraint::Length(2),  // Spacer
-            Constraint::Length(2),  // Item count
-            Constraint::Min(0),     // Rest
+            Constraint::Length(3), // Title
+            Constraint::Length(2), // Spacer
+            Constraint::Length(3), // Progress bar
+            Constraint::Length(2), // Spacer
+            Constraint::Length(2), // Item count
+            Constraint::Min(0),    // Rest
         ])
         .split(area);
 
     // Title text
     let title_text = Paragraph::new(Line::from(vec![
-        Span::styled(
-            format!("{} ", icon),
-            Style::default().fg(color),
-        ),
+        Span::styled(format!("{} ", icon), Style::default().fg(color)),
         Span::styled(
             "Cleaning...",
             Style::default().fg(color).add_modifier(Modifier::BOLD),
@@ -668,12 +712,18 @@ fn render_cleaning_screen(app: &App, frame: &mut Frame, area: Rect) {
     // Animated progress bar (pulses since we don't track individual file progress)
     let progress = ((app.anim_frame % 20) as f64 / 20.0 * 0.3) + 0.7; // Pulse between 70-100%
     let gauge = Gauge::default()
-        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(color)))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(color)),
+        )
         .gauge_style(Style::default().fg(color).add_modifier(Modifier::BOLD))
         .percent((progress * 100.0) as u16)
         .label(Span::styled(
             message,
-            Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
         ));
     frame.render_widget(gauge, chunks[2]);
 
@@ -724,11 +774,12 @@ fn render_status_bar(app: &App, frame: &mut Frame, area: Rect) {
         Span::styled(&selected_info, Style::default().fg(Color::Green)),
         Span::styled(&search_info, Style::default().fg(Color::Cyan)),
         Span::styled(&status, Style::default().fg(Color::White)),
-        Span::raw(" ".repeat(
-            area.width
-                .saturating_sub((selected_info.len() + search_info.len() + status.len() + help_hint.len()) as u16)
-                as usize,
-        )),
+        Span::raw(" ".repeat(area.width.saturating_sub(
+            (selected_info.chars().count()
+                + search_info.chars().count()
+                + status.chars().count()
+                + help_hint.chars().count()) as u16,
+        ) as usize)),
         Span::styled(help_hint, Style::default().fg(Color::Gray)),
     ]))
     .block(
@@ -752,7 +803,10 @@ fn render_confirm_dialog(app: &App, frame: &mut Frame, area: Rect) {
 
     // Show delete mode
     let mode_text = if app.permanent_delete {
-        Span::styled("🔥 PERMANENT (rm -rf)", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
+        Span::styled(
+            "🔥 PERMANENT (rm -rf)",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        )
     } else {
         Span::styled("🗑️  Move to Trash", Style::default().fg(Color::Green))
     };
@@ -784,7 +838,11 @@ fn render_confirm_dialog(app: &App, frame: &mut Frame, area: Rect) {
         ]),
     ];
 
-    let border_color = if app.permanent_delete { Color::Red } else { Color::Yellow };
+    let border_color = if app.permanent_delete {
+        Color::Red
+    } else {
+        Color::Yellow
+    };
 
     let dialog = Paragraph::new(text)
         .block(
@@ -811,10 +869,15 @@ fn render_help_popup(frame: &mut Frame, area: Rect) {
     let help_text = vec![
         Line::from(Span::styled(
             "🤖 null-e Keyboard Shortcuts",
-            Style::default().add_modifier(Modifier::BOLD).fg(Color::Green),
+            Style::default()
+                .add_modifier(Modifier::BOLD)
+                .fg(Color::Green),
         )),
         Line::from(""),
-        Line::from(Span::styled(" Navigation", Style::default().fg(Color::Cyan))),
+        Line::from(Span::styled(
+            " Navigation",
+            Style::default().fg(Color::Cyan),
+        )),
         Line::from(vec![
             Span::styled("  j/↓      ", Style::default().fg(Color::Yellow)),
             Span::raw("Move down"),
@@ -903,8 +966,10 @@ fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
 
 /// Truncate string to max length
 fn truncate(s: &str, max: usize) -> String {
-    if s.len() > max {
-        format!("{}...", &s[..max.saturating_sub(3)])
+    let char_count = s.chars().count();
+    if char_count > max {
+        let truncated: String = s.chars().take(max.saturating_sub(3)).collect();
+        format!("{}...", truncated)
     } else {
         s.to_string()
     }
