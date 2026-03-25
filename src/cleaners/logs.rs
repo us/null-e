@@ -6,7 +6,9 @@
 //! - Development tool logs
 //! - Crash reports
 
-use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
+#[cfg(target_os = "macos")]
+use super::get_mtime;
+use super::{calculate_dir_size, CleanableItem, SafetyLevel};
 use crate::error::Result;
 use std::borrow::Cow;
 use std::path::PathBuf;
@@ -190,6 +192,7 @@ impl LogsCleaner {
 
     /// Detect crash reports
     fn detect_crash_reports(&self) -> Result<Vec<CleanableItem>> {
+        #[allow(unused_mut)]
         let mut items = Vec::new();
 
         #[cfg(target_os = "macos")]

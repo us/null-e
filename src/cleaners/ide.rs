@@ -6,7 +6,9 @@
 //! - Sublime Text
 //! - Cursor
 
-use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
+#[cfg(target_os = "macos")]
+use super::get_mtime;
+use super::{calculate_dir_size, CleanableItem, SafetyLevel};
 use crate::error::Result;
 use std::borrow::Cow;
 use std::path::PathBuf;
@@ -487,6 +489,7 @@ impl IdeCleaner {
 
     /// Detect Zed editor caches
     fn detect_zed(&self) -> Result<Vec<CleanableItem>> {
+        #[allow(unused_mut)]
         let mut items = Vec::new();
 
         #[cfg(target_os = "macos")]

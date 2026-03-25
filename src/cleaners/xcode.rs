@@ -20,14 +20,15 @@ pub struct XcodeCleaner {
 impl XcodeCleaner {
     /// Create a new Xcode cleaner
     pub fn new() -> Option<Self> {
-        let home = dirs::home_dir()?;
-
         // Only available on macOS
         #[cfg(not(target_os = "macos"))]
         return None;
 
         #[cfg(target_os = "macos")]
-        Some(Self { home })
+        {
+            let home = dirs::home_dir()?;
+            Some(Self { home })
+        }
     }
 
     /// Detect all Xcode cleanable items

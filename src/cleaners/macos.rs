@@ -6,10 +6,15 @@
 //! - Application support remnants
 //! - System caches
 
+#[cfg(target_os = "macos")]
 use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
+#[cfg(target_os = "macos")]
 use crate::error::Result;
+#[cfg(target_os = "macos")]
 use std::borrow::Cow;
+#[cfg(target_os = "macos")]
 use std::collections::HashSet;
+#[cfg(target_os = "macos")]
 use std::path::PathBuf;
 
 /// macOS system cleaner

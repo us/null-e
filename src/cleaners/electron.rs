@@ -9,13 +9,16 @@
 //! - Figma
 //! - And many more Electron/Chromium apps
 
-use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
+#[cfg(target_os = "macos")]
+use super::get_mtime;
+use super::{calculate_dir_size, CleanableItem, SafetyLevel};
 use crate::error::Result;
 use std::borrow::Cow;
 use std::path::PathBuf;
 
 /// Extra cache bundle IDs that don't follow the standard naming pattern.
 /// Maps Application Support folder name → known ~/Library/Caches/ bundle ID.
+#[cfg(target_os = "macos")]
 const EXTRA_CACHE_BUNDLE_IDS: &[(&str, &str)] = &[
     ("Spotify", "com.spotify.client"),
     ("discord", "com.hnc.Discord"),
