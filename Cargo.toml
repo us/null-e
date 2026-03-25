@@ -1,6 +1,6 @@
 [package]
 name = "null-e"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["us"]
 description = "Disk cleanup CLI for developers - clean node_modules, target, .venv, Docker, Xcode caches and 50+ cache types"
