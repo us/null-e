@@ -6,9 +6,9 @@
 //! - Application support remnants
 //! - System caches
 
+use super::CleanableItem;
 #[cfg(target_os = "macos")]
-use super::{calculate_dir_size, get_mtime, CleanableItem, SafetyLevel};
-#[cfg(target_os = "macos")]
+use super::{calculate_dir_size, get_mtime, SafetyLevel};
 use crate::error::Result;
 #[cfg(target_os = "macos")]
 use std::borrow::Cow;
