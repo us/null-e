@@ -1,0 +1,65 @@
+[package]
+name = "null-e-core"
+description = "Core library for null-e disk cleanup tool"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+
+# Async/Parallel processing
+rayon = { workspace = true }
+crossbeam-channel = { workspace = true }
+parking_lot = { workspace = true }
+dashmap = { workspace = true }
+
+# Filesystem operations
+jwalk = { workspace = true }
+walkdir = { workspace = true }
+ignore = { workspace = true }
+globset = { workspace = true }
+dirs = { workspace = true }
+fs_extra = { workspace = true }
+
+# Git integration
+gix = { workspace = true }
+
+# Trash support (cross-platform)
+trash = { workspace = true }
+
+# Utilities
+uuid = { workspace = true }
+humansize = { workspace = true }
+chrono = { workspace = true }
+num_cpus = { workspace = true }
+once_cell = { workspace = true }
+regex = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Docker (optional)
+bollard = { version = "0.20", optional = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+assert_fs = { workspace = true }
+predicates = { workspace = true }
+tokio = { workspace = true }
+pretty_assertions = { workspace = true }
+
+[features]
+default = ["docker"]
+docker = ["dep:bollard"]
+full = ["docker"]

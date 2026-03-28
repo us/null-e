@@ -32,6 +32,7 @@ export default {
       children: [
         { title: "Git Protection", slug: "safety" },
         { title: "Configuration", slug: "configuration" },
+        { title: "Disclaimer", slug: "disclaimer" },
       ],
     },
   ],
@@ -39,7 +40,7 @@ export default {
   defaultPage: "introduction",
 
   footer: {
-    left: "Released under the WTFPL License",
+    left: "Released under the WTFPL License — No warranty, use at your own risk",
     right: "null-e — Developer disk cleanup CLI",
   },
 };

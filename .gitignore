@@ -30,5 +30,11 @@ Thumbs.db
 # Docs
 docs/dist/
 
+# Node
+node_modules/
+ui/dist/
+
 # Test artifacts
 *.log
+.gstack/
+test-results/

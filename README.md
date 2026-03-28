@@ -1,13 +1,6 @@
-```
-     .---.
-    |o   o|    null-e
-    |  ^  |    ═══════════════════════════════════
-    | === |    The friendly disk cleanup robot
-    `-----'    Send your cruft to /dev/null!
-     /| |\
-```
-
 <div align="center">
+
+<img src="assets/logo-200.png" alt="null-e mascot" width="120" />
 
 # null-e
 
@@ -262,3 +255,14 @@ use_icons = true
 ## License
 
 [WTFPL](LICENSE) — Do What The Fuck You Want To Public License.
+
+## Disclaimer
+
+**null-e** is provided "as-is" without warranty of any kind. The authors are
+not responsible for any data loss resulting from the use of this software.
+
+- **Always keep backups** of important work before running cleanup operations
+- **Use `--dry-run`** to preview what will be deleted before committing
+- **Trash mode** (default) allows recovery, but is not guaranteed on all filesystems
+- **Permanent delete** is irreversible — use with extreme caution
+- This tool is designed for developers who understand the artifacts being cleaned

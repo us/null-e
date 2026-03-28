@@ -1,0 +1,24 @@
+DISCLAIMER OF WARRANTY AND LIABILITY
+
+THE SOFTWARE "null-e" IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+This includes but is not limited to:
+
+- Loss of data, files, or directories
+- Corruption of project files or repositories
+- Loss of build artifacts needed for deployment
+- Failure of the trash/recovery mechanism
+- Unintended deletion of files outside the intended scope
+
+USE AT YOUR OWN RISK.
+
+You are solely responsible for maintaining backups of your data.
+The developers recommend using dry-run mode (--dry-run / -n) before any
+cleanup operation and reviewing the output carefully.

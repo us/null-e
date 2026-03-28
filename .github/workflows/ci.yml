@@ -59,3 +59,27 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --all -- --check
+
+  tauri-check:
+    name: Tauri GUI Check
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-tauri-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - uses: oven-sh/setup-bun@v2
+      - run: cd ui && bun install
+      - run: cd ui && bun run build
+      - run: cargo check -p null-e-gui

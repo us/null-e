@@ -1,17 +1,16 @@
-[package]
-name = "null-e"
+[workspace]
+members = ["crates/null-e-core", "crates/null-e-cli", "tauri"]
+resolver = "2"
+
+[workspace.package]
 version = "0.3.0"
 edition = "2021"
 authors = ["us"]
-description = "Disk cleanup CLI for developers - clean node_modules, target, .venv, Docker, Xcode caches and 50+ cache types"
 license = "WTFPL"
 repository = "https://github.com/us/null-e"
 homepage = "https://github.com/us/null-e"
-keywords = ["cleanup", "disk-space", "developer-tools", "cache", "cli"]
-categories = ["command-line-utilities", "development-tools", "filesystem"]
-readme = "README.md"
 
-[dependencies]
+[workspace.dependencies]
 # Error handling
 thiserror = "2.0"
 anyhow = "1.0"
@@ -63,24 +62,18 @@ regex = "1.12"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-# Docker (optional)
-bollard = { version = "0.20", optional = true }
+# Docker
+bollard = "0.20"
 
-[dev-dependencies]
+# Dev dependencies
 tempfile = "3.9"
 assert_fs = "1.0"
 predicates = "3.0"
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["full"] }
 pretty_assertions = "1.4"
 
-[features]
-default = ["docker"]
-docker = ["dep:bollard"]
-full = ["docker"]
-
-[[bin]]
-name = "null-e"
-path = "src/main.rs"
+# Internal crates
+null-e-core = { path = "crates/null-e-core" }
 
 [profile.release]
 lto = true
@@ -91,6 +84,3 @@ opt-level = 3
 
 [profile.dev]
 opt-level = 1
-
-[package.metadata.docs.rs]
-all-features = true
