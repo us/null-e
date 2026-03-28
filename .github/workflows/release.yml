@@ -166,7 +166,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: ./tauri
-          args: --target ${{ matrix.target }} --config "build.beforeBuildCommand=\"\""
+          args: --target ${{ matrix.target }} --config '{"build":{"beforeBuildCommand":""}}'
           tagName: ${{ env.RELEASE_TAG }}
           releaseName: 'null-e ${{ env.RELEASE_TAG }}'
           releaseBody: ''
