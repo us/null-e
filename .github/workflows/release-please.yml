@@ -36,7 +36,10 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'release.yml',
-              ref: '${{ needs.release-please.outputs.tag_name }}',
+              ref: 'main',
+              inputs: {
+                tag: '${{ needs.release-please.outputs.tag_name }}',
+              },
             });
 
   update-readme:

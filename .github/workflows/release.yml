@@ -13,6 +13,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   BINARY_NAME: null-e
+  RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
 
 permissions:
   contents: write
@@ -165,11 +166,11 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: ./tauri
-          tagName: ${{ github.ref_name }}
-          releaseName: 'null-e ${{ github.ref_name }}'
+          tagName: ${{ env.RELEASE_TAG }}
+          releaseName: 'null-e ${{ env.RELEASE_TAG }}'
           releaseBody: ''
           releaseDraft: false
-          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          prerelease: ${{ contains(env.RELEASE_TAG, 'alpha') || contains(env.RELEASE_TAG, 'beta') || contains(env.RELEASE_TAG, 'rc') }}
           args: --target ${{ matrix.target }}
 
   release:
@@ -196,7 +197,7 @@ jobs:
           files: release/*
           generate_release_notes: true
           draft: false
-          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          prerelease: ${{ contains(env.RELEASE_TAG, 'alpha') || contains(env.RELEASE_TAG, 'beta') || contains(env.RELEASE_TAG, 'rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -231,7 +232,7 @@ jobs:
         with:
           formula-name: null-e
           homebrew-tap: us/homebrew-tap
-          download-url: https://github.com/us/null-e/archive/refs/tags/${{ github.ref_name }}.tar.gz
+          download-url: https://github.com/us/null-e/archive/refs/tags/${{ env.RELEASE_TAG }}.tar.gz
         env:
           COMMITTER_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         continue-on-error: true
