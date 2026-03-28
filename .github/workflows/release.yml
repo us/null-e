@@ -155,8 +155,8 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Install frontend dependencies
-        run: cd ui && bun install
+      - name: Install and build frontend
+        run: cd ui && bun install && bun run build
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -166,12 +166,12 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: ./tauri
+          args: --target ${{ matrix.target }} --config "build.beforeBuildCommand=\"\""
           tagName: ${{ env.RELEASE_TAG }}
           releaseName: 'null-e ${{ env.RELEASE_TAG }}'
           releaseBody: ''
           releaseDraft: false
           prerelease: ${{ contains(env.RELEASE_TAG, 'alpha') || contains(env.RELEASE_TAG, 'beta') || contains(env.RELEASE_TAG, 'rc') }}
-          args: --target ${{ matrix.target }}
 
   release:
     name: Create Release
