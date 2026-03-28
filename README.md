@@ -4,14 +4,12 @@
 
 # null-e
 
-**Disk cleanup CLI for developers — clean node_modules, target, .venv, Docker, Xcode caches and 50+ cache types**
+**Disk cleanup for developers — clean node_modules, target, .venv, Docker, Xcode caches and 50+ cache types**
 
 [![CI](https://github.com/us/null-e/actions/workflows/ci.yml/badge.svg)](https://github.com/us/null-e/actions/workflows/ci.yml)
-[![Crates.io](https://img.shields.io/crates/v/null-e.svg)](https://crates.io/crates/null-e)
-[![Downloads](https://img.shields.io/crates/d/null-e.svg)](https://crates.io/crates/null-e)
 [![License](https://img.shields.io/badge/license-WTFPL-brightgreen.svg)](LICENSE)
 
-[Quick Start](#quick-start) • [Docs](https://us.github.io/null-e) • [Changelog](CHANGELOG.md)
+[Download](#download) • [Quick Start](#quick-start) • [Docs](https://us.github.io/null-e) • [Changelog](CHANGELOG.md)
 
 </div>
 
@@ -19,9 +17,31 @@
 
 `/dev/null` + Wall-E = **null-e** — like the adorable trash-compacting robot, null-e tirelessly cleans up developer junk and sends it where it belongs.
 
-**Fast parallel scanning. Git-aware protection. 8 language plugins, 18 system cleaners, 50+ cache targets. Interactive TUI.**
+> **Reclaim 100+ GB** — most developer machines accumulate tens of gigabytes of stale `node_modules`, `target/`, `.venv`, Docker images, and IDE caches.
 
-> **Reclaim 100+ GB** — most developer machines accumulate tens of gigabytes of stale `node_modules`, `target/`, `.venv`, Docker images, and IDE caches across dozens of projects.
+## Download
+
+### Desktop App (GUI)
+
+| Platform | Download |
+|----------|----------|
+| **macOS (Apple Silicon)** | [Download .dmg](https://github.com/us/null-e/releases/latest/download/null-e_0.4.0_aarch64.dmg) — M1/M2/M3/M4 |
+| **macOS (Intel)** | [Download .dmg](https://github.com/us/null-e/releases/latest/download/null-e_0.4.0_x64.dmg) |
+| **Windows** | [Download .exe](https://github.com/us/null-e/releases/latest/download/null-e_0.4.0_x64-setup.exe) — 64-bit |
+| **Linux (Ubuntu/Debian)** | [Download .deb](https://github.com/us/null-e/releases/latest/download/null-e_0.4.0_amd64.deb) |
+| **Linux (Universal)** | [Download .AppImage](https://github.com/us/null-e/releases/latest/download/null-e_0.4.0_amd64.AppImage) |
+
+### macOS Installation Note
+
+The app is not yet signed with an Apple Developer certificate. After downloading:
+
+```bash
+# Drag null-e.app to /Applications, then run:
+xattr -rd com.apple.quarantine /Applications/null-e.app
+open /Applications/null-e.app
+```
+
+### CLI (command-line)
 
 ```bash
 cargo install null-e

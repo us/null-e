@@ -15,6 +15,7 @@ export default {
       children: [
         { title: "Introduction", slug: "introduction" },
         { title: "Installation", slug: "installation" },
+        { title: "安装指南 (Chinese)", slug: "installation-zh" },
         { title: "Quick Start", slug: "quick-start" },
       ],
     },
