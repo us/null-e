@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.4.0](https://github.com/us/null-e/compare/v0.3.0...v0.4.0) (2026-03-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* project restructured as Cargo workspace with Tauri GUI crate
+
+### Features
+
+* add Tauri GUI with full UX, auto-update, system tray, and cross-platform releases ([1e0b5f9](https://github.com/us/null-e/commit/1e0b5f9ab5d355122e0610d5be2cc92a875df555))
+
+
+### Bug Fixes
+
+* **ci:** exclude Tauri GUI crate from test and clippy jobs ([af19683](https://github.com/us/null-e/commit/af1968380fbb3b6b42752c2fa9d44f53f884bb0a))
+* **ci:** switch release-please to simple mode for Cargo workspace compatibility ([e0643b5](https://github.com/us/null-e/commit/e0643b576d0601bf426420eb3887107ae17f55cd))
+
 ## [0.3.0](https://github.com/us/null-e/compare/v0.2.0...v0.3.0) (2026-03-25)
 
 
