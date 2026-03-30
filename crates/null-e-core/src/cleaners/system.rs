@@ -204,7 +204,7 @@ impl SystemCleaner {
         #[cfg(target_os = "macos")]
         let temp_paths = vec![
             self.home.join("Library/Caches/TemporaryItems"),
-            PathBuf::from("/private/var/folders"),
+            std::env::temp_dir(),
         ];
 
         #[cfg(target_os = "linux")]
