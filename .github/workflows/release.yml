@@ -56,6 +56,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -135,6 +137,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -179,6 +183,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -205,13 +211,16 @@ jobs:
   publish-crate:
     name: Publish to crates.io
     needs: release
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: dtolnay/rust-toolchain@stable
       - name: Verify version matches tag
         run: |
-          TAG="${GITHUB_REF#refs/tags/v}"
+          TAG="${RELEASE_TAG#v}"
           TOML_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
           if [ "$TAG" != "$TOML_VERSION" ]; then
             echo "Tag v$TAG does not match Cargo.toml version $TOML_VERSION"
@@ -226,7 +235,7 @@ jobs:
     name: Update Homebrew Formula
     needs: release
     runs-on: ubuntu-latest
-    if: ${{ !contains(github.ref, 'alpha') && !contains(github.ref, 'beta') && !contains(github.ref, 'rc') }}
+    if: ${{ github.event_name == 'push' && !contains(env.RELEASE_TAG, 'alpha') && !contains(env.RELEASE_TAG, 'beta') && !contains(env.RELEASE_TAG, 'rc') }}
     steps:
       - name: Update Homebrew formula
         uses: mislav/bump-homebrew-formula-action@v3
