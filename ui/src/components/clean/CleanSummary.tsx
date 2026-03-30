@@ -93,7 +93,12 @@ export function CleanSummary({ summary, onClose }: CleanSummaryProps) {
 
                 {summary.used_trash && (
                   <p className="text-xs text-[var(--color-text-muted)] text-center">
-                    Items were moved to Trash
+                    Method: {summary.method_label}
+                  </p>
+                )}
+                {!summary.used_trash && (
+                  <p className="text-xs text-[var(--color-text-muted)] text-center">
+                    Method: {summary.method_label}
                   </p>
                 )}
               </div>

@@ -57,12 +57,20 @@ export interface CleanProgressDto {
   is_complete: boolean;
 }
 
+export interface CleanFailureDto {
+  path: string;
+  reason: string;
+  is_tcc: boolean;
+}
+
 export interface CleanSummaryDto {
   total_items: number;
   succeeded: number;
   failed: number;
   bytes_freed: number;
   used_trash: boolean;
+  method_label: string;
+  failures: CleanFailureDto[];
 }
 
 // Cache types
@@ -98,6 +106,11 @@ export interface DiskInfoDto {
   mount_point: string;
 }
 
+export interface FdaStatusDto {
+  status: 'granted' | 'not_granted' | 'unknown';
+  platform: string;
+}
+
 // Commands
 export const commands = {
   startScan: (config: ScanConfigDto) =>
@@ -114,7 +127,7 @@ export const commands = {
 
   detectCaches: () => invoke<GlobalCacheDto[]>('detect_caches'),
 
-  cleanCache: (id: string) => invoke<void>('clean_cache', { id }),
+  cleanCache: (id: string) => invoke<number>('clean_cache', { id }),
 
   detectCleaners: () => invoke<CleanableItemDto[]>('detect_cleaners'),
 
@@ -126,6 +139,8 @@ export const commands = {
   getDiskInfo: () => invoke<DiskInfoDto>('get_disk_info'),
 
   getAppVersion: () => invoke<string>('get_app_version'),
+
+  checkFdaStatus: () => invoke<FdaStatusDto>('check_fda_status'),
 };
 
 // Events

@@ -3617,7 +3617,7 @@ dependencies = [
 
 [[package]]
 name = "null-e-cli"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "chrono",
  "clap",
@@ -3640,7 +3640,7 @@ dependencies = [
 
 [[package]]
 name = "null-e-core"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "assert_fs",
@@ -3677,8 +3677,9 @@ dependencies = [
 
 [[package]]
 name = "null-e-gui"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
+ "dirs",
  "null-e-core",
  "serde",
  "serde_json",

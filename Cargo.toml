@@ -3,7 +3,7 @@ members = ["crates/null-e-core", "crates/null-e-cli", "tauri"]
 resolver = "2"
 
 [workspace.package]
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 authors = ["us"]
 license = "WTFPL"

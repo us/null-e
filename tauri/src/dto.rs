@@ -126,6 +126,15 @@ pub struct CleanSummaryDto {
     pub failed: usize,
     pub bytes_freed: u64,
     pub used_trash: bool,
+    pub method_label: String,
+    pub failures: Vec<CleanFailureDto>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CleanFailureDto {
+    pub path: String,
+    pub reason: String,
+    pub is_tcc: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -195,4 +204,10 @@ pub struct DiskInfoDto {
     pub used: u64,
     pub available: u64,
     pub mount_point: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FdaStatusDto {
+    pub status: String,
+    pub platform: String,
 }

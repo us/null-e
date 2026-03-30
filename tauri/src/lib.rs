@@ -32,6 +32,7 @@ pub fn run() {
             commands::config::save_config,
             commands::system::get_disk_info,
             commands::system::get_app_version,
+            commands::system::check_fda_status,
         ])
         .setup(|app| {
             // System tray menu

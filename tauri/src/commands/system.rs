@@ -1,5 +1,7 @@
-use crate::dto::DiskInfoDto;
+use crate::dto::{DiskInfoDto, FdaStatusDto};
 use crate::state::AppState;
+use std::fs;
+use std::io::ErrorKind;
 use std::process::Command;
 
 #[tauri::command]
@@ -38,4 +40,42 @@ pub async fn get_disk_info(_state: tauri::State<'_, AppState>) -> Result<DiskInf
 #[tauri::command]
 pub async fn get_app_version(_state: tauri::State<'_, AppState>) -> Result<String, String> {
     Ok(null_e_core::VERSION.to_string())
+}
+
+#[tauri::command]
+pub async fn check_fda_status(_state: tauri::State<'_, AppState>) -> Result<FdaStatusDto, String> {
+    Ok(check_fda_status_inner())
+}
+
+#[cfg(target_os = "macos")]
+fn check_fda_status_inner() -> FdaStatusDto {
+    let platform = std::env::consts::OS.to_string();
+    let Some(home) = dirs::home_dir() else {
+        return FdaStatusDto {
+            status: "unknown".to_string(),
+            platform,
+        };
+    };
+
+    let tcc_dir = home.join("Library/Application Support/com.apple.TCC");
+    let status = match fs::read_dir(tcc_dir) {
+        Ok(_) => "granted",
+        Err(err) if err.kind() == ErrorKind::PermissionDenied || err.raw_os_error() == Some(1) => {
+            "not_granted"
+        }
+        Err(_) => "unknown",
+    };
+
+    FdaStatusDto {
+        status: status.to_string(),
+        platform,
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn check_fda_status_inner() -> FdaStatusDto {
+    FdaStatusDto {
+        status: "granted".to_string(),
+        platform: std::env::consts::OS.to_string(),
+    }
 }

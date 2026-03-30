@@ -1,6 +1,14 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { PartyPopper, RotateCcw, AlertTriangle } from 'lucide-react';
+import {
+  PartyPopper,
+  RotateCcw,
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+} from 'lucide-react';
+import { open } from '@tauri-apps/plugin-shell';
 import { useCleanStore } from '@/stores/clean-store';
 import { useScanStore } from '@/stores/scan-store';
 import { useUiStore } from '@/stores/ui-store';
@@ -10,9 +18,16 @@ import { formatSize } from '@/lib/format';
 export function CelebrationView() {
   const summary = useCleanStore((s) => s.summary);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [showFailures, setShowFailures] = useState(true);
 
   const hasFailed = summary != null && summary.failed > 0;
   const isFullSuccess = summary != null && summary.failed === 0;
+  const visibleFailures = useMemo(
+    () => summary?.failures.slice(0, 10) ?? [],
+    [summary]
+  );
+  const hiddenFailureCount = Math.max(0, (summary?.failures.length ?? 0) - visibleFailures.length);
+  const hasTccFailures = summary?.failures.some((failure) => failure.is_tcc) ?? false;
 
   // Confetti effect — only on full success
   useEffect(() => {
@@ -90,6 +105,14 @@ export function CelebrationView() {
 
   if (!summary) return null;
 
+  const openFdaSettings = async () => {
+    try {
+      await open('x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles');
+    } catch (err) {
+      console.error('Failed to open Full Disk Access settings:', err);
+    }
+  };
+
   return (
     <div className="relative flex flex-col items-center justify-center h-full">
       {isFullSuccess && <canvas ref={canvasRef} className="confetti-container" />}
@@ -142,11 +165,83 @@ export function CelebrationView() {
           )}
           <div>
             <p className="text-xl font-bold text-[var(--color-text)]">
-              {summary.used_trash ? 'Trash' : 'Deleted'}
+              {summary.method_label}
             </p>
             <p className="text-xs text-[var(--color-text-muted)]">Method</p>
           </div>
         </div>
+
+        {hasTccFailures && (
+          <div className="w-full max-w-2xl rounded-2xl border border-amber-500/25 bg-amber-500/10 px-5 py-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={18} className="mt-0.5 text-amber-300" />
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-[var(--color-text)]">
+                  Full Disk Access required for some items
+                </h3>
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                  Some deletions were blocked by macOS privacy protections. Grant Full Disk Access
+                  to null-e, then try those items again.
+                </p>
+              </div>
+              <button
+                onClick={() => { void openFdaSettings(); }}
+                className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-3 py-2 text-sm font-medium text-slate-950 transition-colors hover:bg-amber-300"
+              >
+                <ExternalLink size={14} />
+                Open Settings
+              </button>
+            </div>
+          </div>
+        )}
+
+        {summary.failures.length > 0 && (
+          <div className="w-full max-w-2xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)]/80">
+            <button
+              onClick={() => setShowFailures((value) => !value)}
+              className="flex w-full items-center justify-between px-5 py-4 text-left"
+            >
+              <div>
+                <p className="text-sm font-semibold text-[var(--color-text)]">
+                  Failure details
+                </p>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                  {summary.failed} item{summary.failed === 1 ? '' : 's'} could not be cleaned
+                </p>
+              </div>
+              {showFailures ? (
+                <ChevronDown size={18} className="text-[var(--color-text-muted)]" />
+              ) : (
+                <ChevronRight size={18} className="text-[var(--color-text-muted)]" />
+              )}
+            </button>
+
+            {showFailures && (
+              <div className="border-t border-[var(--color-border)] px-5 py-4">
+                <div className="space-y-3">
+                  {visibleFailures.map((failure) => (
+                    <div
+                      key={`${failure.path}:${failure.reason}`}
+                      className="rounded-xl bg-[var(--color-bg)] px-4 py-3"
+                    >
+                      <p className="break-all text-sm font-medium text-[var(--color-text)]">
+                        {failure.path}
+                      </p>
+                      <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+                        {failure.reason}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                {hiddenFailureCount > 0 && (
+                  <p className="mt-3 text-xs text-[var(--color-text-muted)]">
+                    and {hiddenFailureCount} more
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-3 mt-4">

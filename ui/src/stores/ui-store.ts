@@ -4,6 +4,7 @@ export type AppState = 'welcome' | 'scanning' | 'results' | 'cleaning' | 'done';
 export type Theme = 'dark' | 'light' | 'system';
 export type ViewMode = 'grouped' | 'flat';
 export type FlatSortBy = 'size' | 'name' | 'technology';
+export type FdaStatus = 'granted' | 'not_granted' | 'unknown' | 'unchecked';
 
 interface UiState {
   appState: AppState;
@@ -13,6 +14,8 @@ interface UiState {
   flatSortBy: FlatSortBy;
   searchQuery: string;
   disclaimerAccepted: boolean;
+  fdaStatus: FdaStatus;
+  fdaDismissed: boolean;
 
   setAppState: (state: AppState) => void;
   toggleTheme: () => void;
@@ -22,6 +25,8 @@ interface UiState {
   setFlatSortBy: (sortBy: FlatSortBy) => void;
   setSearchQuery: (query: string) => void;
   acceptDisclaimer: () => void;
+  setFdaStatus: (status: FdaStatus) => void;
+  dismissFda: () => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -33,6 +38,11 @@ export const useUiStore = create<UiState>((set) => ({
   searchQuery: '',
   disclaimerAccepted: (() => {
     try { return localStorage.getItem('null-e:disclaimer-accepted') !== null; }
+    catch { return false; }
+  })(),
+  fdaStatus: 'unchecked',
+  fdaDismissed: (() => {
+    try { return localStorage.getItem('null-e:fda-dismissed') !== null; }
     catch { return false; }
   })(),
 
@@ -58,5 +68,28 @@ export const useUiStore = create<UiState>((set) => ({
   acceptDisclaimer: () => {
     localStorage.setItem('null-e:disclaimer-accepted', new Date().toISOString());
     set({ disclaimerAccepted: true });
+  },
+
+  setFdaStatus: (fdaStatus) => {
+    if (fdaStatus === 'granted') {
+      try {
+        localStorage.removeItem('null-e:fda-dismissed');
+      } catch {
+        // Ignore storage failures and still update in-memory state.
+      }
+      set({ fdaStatus, fdaDismissed: false });
+      return;
+    }
+
+    set({ fdaStatus });
+  },
+
+  dismissFda: () => {
+    try {
+      localStorage.setItem('null-e:fda-dismissed', new Date().toISOString());
+    } catch {
+      // Ignore storage failures and still update in-memory state.
+    }
+    set({ fdaDismissed: true });
   },
 }));

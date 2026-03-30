@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Search, Settings, AlertCircle } from 'lucide-react';
+import { Search, Settings, AlertCircle, ShieldAlert, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { open } from '@tauri-apps/plugin-shell';
 import { commands, type DiskInfoDto } from '@/lib/tauri';
 import { formatSize } from '@/lib/format';
 import { useScanStore } from '@/stores/scan-store';
@@ -10,6 +11,8 @@ export function WelcomeView() {
   const [diskInfo, setDiskInfo] = useState<DiskInfoDto | null>(null);
   const [scanPaths, setScanPaths] = useState<string[]>([]);
   const { startScan, error: scanError } = useScanStore();
+  const fdaStatus = useUiStore((s) => s.fdaStatus);
+  const fdaDismissed = useUiStore((s) => s.fdaDismissed);
 
   useEffect(() => {
     commands.getDiskInfo().then(setDiskInfo).catch(console.error);
@@ -42,6 +45,14 @@ export function WelcomeView() {
   const freePercent = diskInfo
     ? ((diskInfo.available / diskInfo.total) * 100).toFixed(1)
     : null;
+
+  const openFdaSettings = async () => {
+    try {
+      await open('x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles');
+    } catch (err) {
+      console.error('Failed to open Full Disk Access settings:', err);
+    }
+  };
 
   return (
     <motion.div
@@ -77,6 +88,46 @@ export function WelcomeView() {
             free of {formatSize(diskInfo.total)} ({freePercent}% available)
           </p>
         </div>
+      )}
+
+      {fdaStatus === 'not_granted' && !fdaDismissed && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-2xl rounded-2xl border border-amber-500/25 bg-amber-500/10 px-5 py-4"
+        >
+          <div className="flex gap-4">
+            <div className="mt-0.5 rounded-xl bg-amber-500/15 p-2 text-amber-300">
+              <ShieldAlert size={18} />
+            </div>
+            <div className="flex-1">
+              <div className="flex flex-col gap-1">
+                <h3 className="text-sm font-semibold text-[var(--color-text)]">
+                  Full Disk Access recommended
+                </h3>
+                <p className="text-sm text-[var(--color-text-secondary)]">
+                  null-e can scan and clean more reliably on macOS when Full Disk Access is enabled.
+                  Without it, protected folders may fail with “Operation not permitted”.
+                </p>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={() => { void openFdaSettings(); }}
+                  className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-3.5 py-2 text-sm font-medium text-slate-950 transition-colors hover:bg-amber-300"
+                >
+                  <ExternalLink size={14} />
+                  Open Settings
+                </button>
+                <button
+                  onClick={() => useUiStore.getState().dismissFda()}
+                  className="rounded-xl border border-[var(--color-border)] px-3.5 py-2 text-sm text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-hover)]"
+                >
+                  Not now
+                </button>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       )}
 
       {/* Error message */}
