@@ -48,6 +48,72 @@ impl SystemCleaner {
         Ok(items)
     }
 
+    #[cfg(target_os = "macos")]
+    fn detect_macos_child_dirs(
+        &self,
+        root: &std::path::Path,
+        label_prefix: &str,
+        subcategory: &str,
+        icon: &'static str,
+        description: &'static str,
+        safe_to_delete: SafetyLevel,
+        min_size: u64,
+    ) -> Result<Vec<CleanableItem>> {
+        let mut items = Vec::new();
+
+        if !root.exists() {
+            return Ok(items);
+        }
+
+        let Ok(entries) = std::fs::read_dir(root) else {
+            return Ok(items);
+        };
+
+        for entry in entries.filter_map(|entry| entry.ok()) {
+            let path = entry.path();
+            if !path.is_dir() || std::fs::read_dir(&path).is_err() {
+                continue;
+            }
+
+            let (size, file_count) = calculate_dir_size(&path)?;
+            if size < min_size {
+                continue;
+            }
+
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+
+            items.push(CleanableItem {
+                name: format!("{label_prefix} ({name})"),
+                category: "System".to_string(),
+                subcategory: subcategory.to_string(),
+                icon,
+                path: path.clone(),
+                size,
+                file_count: Some(file_count),
+                last_modified: get_mtime(&path),
+                description: Cow::Borrowed(description),
+                safe_to_delete,
+                clean_command: None,
+            });
+        }
+
+        Ok(items)
+    }
+
+    #[cfg(target_os = "macos")]
+    fn macos_var_folders_dir(name: &str) -> Option<PathBuf> {
+        let mut dir = std::env::temp_dir();
+        if dir.file_name()?.to_str()? != "T" {
+            return None;
+        }
+        dir.pop();
+        dir.push(name);
+        Some(dir)
+    }
+
     /// Detect Trash contents
     fn detect_trash(&self) -> Result<Vec<CleanableItem>> {
         let mut items = Vec::new();
@@ -202,10 +268,28 @@ impl SystemCleaner {
 
         // Temp locations
         #[cfg(target_os = "macos")]
-        let temp_paths = vec![
-            self.home.join("Library/Caches/TemporaryItems"),
-            std::env::temp_dir(),
-        ];
+        {
+            items.extend(self.detect_macos_child_dirs(
+                &self.home.join("Library/Caches/TemporaryItems"),
+                "Temp Files",
+                "Temp",
+                "🔥",
+                "Temporary files. May contain files in use.",
+                SafetyLevel::Caution,
+                100_000_000,
+            )?);
+            items.extend(self.detect_macos_child_dirs(
+                &std::env::temp_dir(),
+                "Temp Files",
+                "Temp",
+                "🔥",
+                "Temporary files. May contain files in use.",
+                SafetyLevel::Caution,
+                100_000_000,
+            )?);
+
+            return Ok(items);
+        }
 
         #[cfg(target_os = "linux")]
         let temp_paths = vec![
@@ -334,6 +418,18 @@ impl SystemCleaner {
                         clean_command: None,
                     });
                 }
+            }
+
+            if let Some(var_folders_cache) = Self::macos_var_folders_dir("C") {
+                items.extend(self.detect_macos_child_dirs(
+                    &var_folders_cache,
+                    "System Cache",
+                    "Caches",
+                    "🗄️",
+                    "Per-user macOS cache. Apps may recreate it.",
+                    SafetyLevel::SafeWithCost,
+                    100_000_000,
+                )?);
             }
 
             // Font caches
