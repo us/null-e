@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.1](https://github.com/us/null-e/compare/v0.4.0...v0.4.1) (2026-03-30)
+
+
+### Bug Fixes
+
+* **ci:** add explicit tag_name to softprops/action-gh-release ([7f7230e](https://github.com/us/null-e/commit/7f7230ee4dd308f825fcd66dacd38d25c57259b1))
+* **ci:** add tag input to release workflow_dispatch ([716e4a3](https://github.com/us/null-e/commit/716e4a34f560ebf64500db51c8c8eebb3486b577))
+* **ci:** exclude Tauri GUI from CLI release build ([9492ce9](https://github.com/us/null-e/commit/9492ce90ce0f35ca96f8ffd6c30c3f5a46dfbce7))
+* **ci:** pre-build frontend and skip beforeBuildCommand in tauri-action ([fff0a0f](https://github.com/us/null-e/commit/fff0a0fc904eafed883556280f525f20edf76f5b))
+* **ci:** trigger release workflow via workflow_dispatch from release-please ([864b61d](https://github.com/us/null-e/commit/864b61d1f0ff73d444a1a255aa041c12c7bd1aa5))
+* **ci:** use JSON format for tauri --config override ([44ded58](https://github.com/us/null-e/commit/44ded5885624ec26ba1eeb6c39679f827b522367))
+* **ci:** use RELEASE_TAG env for workflow_dispatch compatibility ([0a792ad](https://github.com/us/null-e/commit/0a792ad0fadf037a62b35554a20d1476a387ecbf))
+
 ## [0.4.0](https://github.com/us/null-e/compare/v0.3.0...v0.4.0) (2026-03-28)
 
 
