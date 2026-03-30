@@ -11,12 +11,24 @@ import { useUiStore } from '@/stores/ui-store';
 import { useScanStore } from '@/stores/scan-store';
 import { useTheme } from '@/hooks/useTheme';
 import { useScanProgress } from '@/hooks/useScanProgress';
+import { useFdaCheck } from '@/hooks/useFdaCheck';
 
 export function App() {
   useTheme();
-  useScanProgress();
 
   const disclaimerAccepted = useUiStore((s) => s.disclaimerAccepted);
+
+  if (!disclaimerAccepted) {
+    return <DisclaimerModal />;
+  }
+
+  return <AppMain />;
+}
+
+function AppMain() {
+  useScanProgress();
+  useFdaCheck();
+
   const appState = useUiStore((s) => s.appState);
   const result = useScanStore((s) => s.result);
   const scanError = useScanStore((s) => s.error);
@@ -34,10 +46,6 @@ export function App() {
       useUiStore.getState().setAppState('welcome');
     }
   }, [scanError, appState]);
-
-  if (!disclaimerAccepted) {
-    return <DisclaimerModal />;
-  }
 
   return (
     <div className="flex flex-col h-full">

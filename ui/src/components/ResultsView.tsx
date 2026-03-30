@@ -1,11 +1,17 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Monitor, Loader2 } from 'lucide-react';
 import { AnimatePresence } from 'framer-motion';
 import { useScanStore } from '@/stores/scan-store';
 import { useUiStore } from '@/stores/ui-store';
 import { useCleanStore } from '@/stores/clean-store';
 import { useSystemStore } from '@/stores/system-store';
-import { events, commands, type ArtifactDto } from '@/lib/tauri';
+import {
+  events,
+  commands,
+  type ArtifactDto,
+  type CleanFailureDto,
+  type CleanSummaryDto,
+} from '@/lib/tauri';
 import { getTechColor, getKindLabel } from '@/components/shared/TechIcon';
 import { TechIcon } from '@/components/shared/TechIcon';
 import { DiskBar } from './DiskBar';
@@ -39,6 +45,62 @@ export interface KindGroup {
   projectCount: number;
 }
 
+interface CacheCleanTarget {
+  cacheId: string;
+  path: string;
+}
+
+interface CacheCleanAggregate {
+  totalItems: number;
+  succeeded: number;
+  failed: number;
+  bytesFreed: number;
+  failures: CleanFailureDto[];
+}
+
+function emptyCacheAggregate(): CacheCleanAggregate {
+  return {
+    totalItems: 0,
+    succeeded: 0,
+    failed: 0,
+    bytesFreed: 0,
+    failures: [],
+  };
+}
+
+function isTccFailureReason(reason: string): boolean {
+  const lower = reason.toLowerCase();
+  return lower.includes('operation not permitted')
+    || lower.includes('eperm')
+    || lower.includes('os error 1');
+}
+
+function mergeSummaries(summary: CleanSummaryDto, cache: CacheCleanAggregate): CleanSummaryDto {
+  if (cache.totalItems === 0) return summary;
+
+  return {
+    total_items: summary.total_items + cache.totalItems,
+    succeeded: summary.succeeded + cache.succeeded,
+    failed: summary.failed + cache.failed,
+    bytes_freed: summary.bytes_freed + cache.bytesFreed,
+    used_trash: summary.used_trash,
+    method_label: summary.method_label === 'Deleted' ? 'Deleted' : 'Mixed',
+    failures: [...summary.failures, ...cache.failures],
+  };
+}
+
+function createCacheOnlySummary(cache: CacheCleanAggregate): CleanSummaryDto {
+  return {
+    total_items: cache.totalItems,
+    succeeded: cache.succeeded,
+    failed: cache.failed,
+    bytes_freed: cache.bytesFreed,
+    used_trash: false,
+    method_label: 'Deleted',
+    failures: cache.failures,
+  };
+}
+
 export function ResultsView() {
   const result = useScanStore((s) => s.result);
   const viewMode = useUiStore((s) => s.viewMode);
@@ -54,6 +116,7 @@ export function ResultsView() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [diskUsed, setDiskUsed] = useState<number | undefined>();
   const [diskTotal, setDiskTotal] = useState<number | undefined>();
+  const cacheCleanPromiseRef = useRef<Promise<CacheCleanAggregate> | null>(null);
 
   // Fetch disk info once on mount
   useEffect(() => {
@@ -77,8 +140,20 @@ export function ResultsView() {
       unlisteners.push(unProgress);
 
       const unComplete = await events.onCleanComplete((payload) => {
-        useCleanStore.getState().setSummary(payload);
-        useUiStore.getState().setAppState('done');
+        void (async () => {
+          const cacheAggregate = cacheCleanPromiseRef.current
+            ? await cacheCleanPromiseRef.current
+            : emptyCacheAggregate();
+          cacheCleanPromiseRef.current = null;
+          useCleanStore.getState().setSummary(mergeSummaries(payload, cacheAggregate));
+          useUiStore.getState().setAppState('done');
+          await useSystemStore.getState().detectSystem();
+        })().catch((err) => {
+          useCleanStore.getState().setError(
+            err instanceof Error ? err.message : String(err)
+          );
+          useUiStore.getState().setAppState('results');
+        });
       });
       if (cancelled) { unComplete(); return; }
       unlisteners.push(unComplete);
@@ -363,16 +438,25 @@ export function ResultsView() {
   const handleClean = async (useTrash: boolean) => {
     setConfirmOpen(false);
     useUiStore.getState().setAppState('cleaning');
+    useCleanStore.setState({
+      isCleaning: true,
+      progress: null,
+      summary: null,
+      error: null,
+    });
 
     const artifactPaths: string[] = [];
     const systemPathsToDelete: string[] = [];
-    const cacheIdsToClean: string[] = [];
+    const cacheTargetsToClean: CacheCleanTarget[] = [];
 
     for (const key of selectedPaths) {
       if (systemKeys.has(key)) {
         const cacheId = cacheKeyToId.get(key);
         if (cacheId) {
-          cacheIdsToClean.push(cacheId);
+          cacheTargetsToClean.push({
+            cacheId,
+            path: key.slice(SYSTEM_PREFIX.length),
+          });
         } else {
           systemPathsToDelete.push(key.slice(SYSTEM_PREFIX.length));
         }
@@ -383,29 +467,71 @@ export function ResultsView() {
 
     const allPathsToDelete = [...artifactPaths, ...systemPathsToDelete];
     const hasPathClean = allPathsToDelete.length > 0;
-    const hasCacheClean = cacheIdsToClean.length > 0;
+    const hasCacheClean = cacheTargetsToClean.length > 0;
+
+    const cacheSummaryPromise = hasCacheClean
+      ? Promise.allSettled(
+          cacheTargetsToClean.map(async (target) => ({
+            path: target.path,
+            bytesFreed: await commands.cleanCache(target.cacheId),
+          }))
+        ).then((results): CacheCleanAggregate => {
+          const aggregate = emptyCacheAggregate();
+          aggregate.totalItems = cacheTargetsToClean.length;
+
+          results.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+              aggregate.succeeded += 1;
+              aggregate.bytesFreed += result.value.bytesFreed;
+              return;
+            }
+
+            const reason = result.reason instanceof Error
+              ? result.reason.message
+              : String(result.reason);
+            aggregate.failed += 1;
+            aggregate.failures.push({
+              path: cacheTargetsToClean[index].path,
+              reason,
+              is_tcc: isTccFailureReason(reason),
+            });
+          });
+
+          return aggregate;
+        })
+      : Promise.resolve(emptyCacheAggregate());
+
+    cacheCleanPromiseRef.current = cacheSummaryPromise;
 
     if (hasPathClean) {
-      useCleanStore.getState().startClean(allPathsToDelete, {
+      await useCleanStore.getState().startClean(allPathsToDelete, {
         use_trash: useTrash,
         dry_run: false,
         force: false,
       });
-    }
 
-    if (hasCacheClean) {
-      try {
-        await Promise.all(cacheIdsToClean.map((id) => commands.cleanCache(id)));
-      } catch (err) {
-        console.error('Cache clean error:', err);
+      if (useCleanStore.getState().error) {
+        const cacheSummary = await cacheSummaryPromise;
+        cacheCleanPromiseRef.current = null;
+
+        if (cacheSummary.totalItems > 0) {
+          useCleanStore.getState().setSummary(createCacheOnlySummary(cacheSummary));
+          useUiStore.getState().setAppState('done');
+          await useSystemStore.getState().detectSystem();
+        } else {
+          useUiStore.getState().setAppState('results');
+        }
+        return;
       }
     }
 
     if (!hasPathClean && hasCacheClean) {
+      const cacheSummary = await cacheSummaryPromise;
+      cacheCleanPromiseRef.current = null;
+      useCleanStore.getState().setSummary(createCacheOnlySummary(cacheSummary));
       useUiStore.getState().setAppState('done');
+      await useSystemStore.getState().detectSystem();
     }
-
-    useSystemStore.getState().detectSystem().catch(console.error);
   };
 
   if (!result) return null;

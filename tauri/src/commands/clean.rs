@@ -1,5 +1,6 @@
-use crate::dto::{CleanConfigDto, CleanProgressDto, CleanSummaryDto};
+use crate::dto::{CleanConfigDto, CleanFailureDto, CleanProgressDto, CleanSummaryDto};
 use crate::state::AppState;
+use null_e_core::error::NullEError;
 use null_e_core::trash::{delete_path, DeleteMethod};
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter};
@@ -29,6 +30,7 @@ pub async fn start_clean(
         let mut succeeded = 0usize;
         let mut failed = 0usize;
         let mut bytes_freed = 0u64;
+        let mut failures = Vec::new();
 
         for (i, target) in targets.iter().enumerate() {
             let path = PathBuf::from(target);
@@ -46,8 +48,14 @@ pub async fn start_clean(
                     succeeded += 1;
                     bytes_freed += freed;
                 }
-                Err(_) => {
+                Err(err) => {
                     failed += 1;
+                    let (reason, is_tcc) = classify_delete_error(&err);
+                    failures.push(CleanFailureDto {
+                        path: target.clone(),
+                        reason,
+                        is_tcc,
+                    });
                 }
             }
         }
@@ -58,6 +66,11 @@ pub async fn start_clean(
             failed,
             bytes_freed,
             used_trash: method == DeleteMethod::Trash,
+            method_label: match method {
+                DeleteMethod::Trash => "Trash".to_string(),
+                DeleteMethod::Permanent | DeleteMethod::DryRun => "Deleted".to_string(),
+            },
+            failures,
         };
         let _ = app_handle.emit("clean:complete", &summary);
     });
@@ -71,4 +84,24 @@ pub async fn cancel_clean(state: tauri::State<'_, AppState>) -> Result<(), Strin
         progress.cancel();
     }
     Ok(())
+}
+
+fn classify_delete_error(err: &NullEError) -> (String, bool) {
+    match err {
+        NullEError::Io(io_err) => {
+            let is_tcc = io_err.raw_os_error() == Some(1);
+            (io_err.to_string(), is_tcc)
+        }
+        NullEError::PermissionDenied(path) => {
+            (format!("Permission denied: {}", path.display()), false)
+        }
+        NullEError::Trash(message) => {
+            let lower = message.to_lowercase();
+            let is_tcc = lower.contains("operation not permitted")
+                || lower.contains("eperm")
+                || lower.contains("os error 1");
+            (message.clone(), is_tcc)
+        }
+        _ => (err.to_string(), false),
+    }
 }

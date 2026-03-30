@@ -17,15 +17,15 @@ pub async fn detect_caches(
 }
 
 #[tauri::command]
-pub async fn clean_cache(_state: tauri::State<'_, AppState>, id: String) -> Result<(), String> {
+pub async fn clean_cache(_state: tauri::State<'_, AppState>, id: String) -> Result<u64, String> {
     tokio::task::spawn_blocking(move || {
         let caches = null_e_core::caches::detect_caches().map_err(|e| e.to_string())?;
         let cache = caches
             .iter()
             .find(|c| c.id == id)
             .ok_or_else(|| format!("Cache '{}' not found", id))?;
-        null_e_core::caches::clean_cache(cache, true).map_err(|e| e.to_string())?;
-        Ok::<(), String>(())
+        let result = null_e_core::caches::clean_cache(cache, true).map_err(|e| e.to_string())?;
+        Ok::<u64, String>(result.bytes_freed)
     })
     .await
     .map_err(|e| e.to_string())?
