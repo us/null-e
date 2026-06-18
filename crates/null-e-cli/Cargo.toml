@@ -11,6 +11,32 @@ repository.workspace = true
 name = "null-e"
 path = "src/main.rs"
 
+# cargo-binstall: download the prebuilt release binary instead of building from source.
+# Asset names are mapped per target triple because the release artifacts use os/arch labels
+# (darwin/linux + aarch64/x86_64) rather than full Rust target triples. Tags are `v{version}`.
+[package.metadata.binstall]
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.aarch64-apple-darwin]
+pkg-url = "{ repo }/releases/download/v{ version }/null-e-darwin-aarch64.tar.gz"
+
+[package.metadata.binstall.overrides.x86_64-apple-darwin]
+pkg-url = "{ repo }/releases/download/v{ version }/null-e-darwin-x86_64.tar.gz"
+
+[package.metadata.binstall.overrides.x86_64-unknown-linux-gnu]
+pkg-url = "{ repo }/releases/download/v{ version }/null-e-linux-x86_64.tar.gz"
+
+[package.metadata.binstall.overrides.aarch64-unknown-linux-gnu]
+pkg-url = "{ repo }/releases/download/v{ version }/null-e-linux-aarch64.tar.gz"
+
+[package.metadata.binstall.overrides.x86_64-unknown-linux-musl]
+pkg-url = "{ repo }/releases/download/v{ version }/null-e-linux-x86_64-musl.tar.gz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-url = "{ repo }/releases/download/v{ version }/null-e-windows-x86_64.zip"
+pkg-fmt = "zip"
+
 [dependencies]
 null-e-core = { workspace = true }
 
