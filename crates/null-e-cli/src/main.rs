@@ -14,9 +14,23 @@ use indicatif::{ProgressBar, ProgressStyle};
 use null_e_core::prelude::*;
 use std::io::{self, BufRead, Write};
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+
+/// Whether emoji are shown in output. Disabled by `--no-emoji` or the `NO_EMOJI` env var.
+static EMOJI_ENABLED: AtomicBool = AtomicBool::new(true);
+
+/// Returns `s` when emoji output is enabled, else an empty string. Put any trailing space
+/// inside `s` (e.g. `ico("🤖 ")`) so the spacing collapses too when emoji are off.
+fn ico(s: &'static str) -> &'static str {
+    if EMOJI_ENABLED.load(Ordering::Relaxed) {
+        s
+    } else {
+        ""
+    }
+}
 
 /// ASCII art robot mascot for null-e
 const ROBOT_BANNER: &str = r#"
@@ -27,9 +41,6 @@ const ROBOT_BANNER: &str = r#"
     `-----'    Send your cruft to /dev/null!
      /| |\
 "#;
-
-/// Small robot for inline display
-const ROBOT_SMALL: &str = "🤖";
 
 /// 🤖 null-e - The Friendly Disk Cleanup Robot
 ///
@@ -90,6 +101,10 @@ struct Cli {
     /// Skip cache, force full rescan
     #[arg(long, global = true)]
     no_cache: bool,
+
+    /// Suppress emoji in output (also honors the NO_EMOJI environment variable)
+    #[arg(long, global = true)]
+    no_emoji: bool,
 }
 
 #[derive(Subcommand)]
@@ -367,6 +382,11 @@ fn check_first_run_disclaimer() {
 fn main() {
     let cli = Cli::parse();
 
+    // Honor --no-emoji / NO_EMOJI before any output is produced.
+    if cli.no_emoji || std::env::var_os("NO_EMOJI").is_some() {
+        EMOJI_ENABLED.store(false, Ordering::Relaxed);
+    }
+
     // Check first-run disclaimer (skip if --force is set)
     if !cli.force {
         check_first_run_disclaimer();
@@ -454,7 +474,7 @@ fn cmd_scan(cli: &Cli, detailed: bool) -> Result<()> {
     println!("{}", ROBOT_BANNER.green());
     println!(
         "{} {}",
-        format!("{} null-e", ROBOT_SMALL).green().bold(),
+        format!("{}null-e", ico("🤖 ")).green().bold(),
         format!("v{}", null_e_core::VERSION).dimmed()
     );
 
@@ -756,7 +776,7 @@ fn cmd_clean(cli: &Cli, _only: &[String], _exclude: &[String]) -> Result<()> {
 
     println!(
         "{} {}",
-        "🤖 null-e Clean".green().bold(),
+        format!("{}null-e Clean", ico("🤖 ")).green().bold(),
         format!("v{}", null_e_core::VERSION).dimmed()
     );
     println!();
@@ -836,6 +856,23 @@ fn cmd_clean(cli: &Cli, _only: &[String], _exclude: &[String]) -> Result<()> {
     } else {
         cli.method.into()
     };
+
+    // Dry run: list exactly what WOULD be deleted (like `git clean -n`), so the preview is
+    // actionable instead of just a summary.
+    if method == DeleteMethod::DryRun {
+        println!();
+        println!("{}", "Would delete:".dimmed());
+        for project in &cleanable {
+            for artifact in &project.artifacts {
+                println!(
+                    "  {} {} {}",
+                    format!("{:>10}", format_size(artifact.size)).yellow(),
+                    artifact.path.display().to_string().cyan(),
+                    format!("({})", artifact.name()).dimmed()
+                );
+            }
+        }
+    }
 
     // Confirm unless force or dry-run
     if !cli.force && method != DeleteMethod::DryRun {
@@ -989,7 +1026,7 @@ fn cmd_caches(cli: &Cli, clean: bool, clean_all: bool, use_official: bool) -> Re
 
     println!(
         "{} {}",
-        "🤖 null-e Caches".green().bold(),
+        format!("{}null-e Caches", ico("🤖 ")).green().bold(),
         format!("v{}", null_e_core::VERSION).dimmed()
     );
     println!();
@@ -1341,7 +1378,7 @@ fn cmd_sweep(cli: &Cli, clean: bool, category: Option<&str>) -> Result<()> {
 
     println!(
         "{} {}",
-        "🤖 null-e Deep Scan".green().bold(),
+        format!("{}null-e Deep Scan", ico("🤖 ")).green().bold(),
         format!("v{}", null_e_core::VERSION).dimmed()
     );
     println!();
@@ -1811,7 +1848,7 @@ fn cmd_android(cli: &Cli, clean: bool) -> Result<()> {
 
     println!(
         "{} {}",
-        "🤖 Android Cleanup".green().bold(),
+        format!("{}Android Cleanup", ico("🤖 ")).green().bold(),
         format!("v{}", null_e_core::VERSION).dimmed()
     );
     println!();
