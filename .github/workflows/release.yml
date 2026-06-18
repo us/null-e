@@ -122,6 +122,10 @@ jobs:
     name: Build Tauri ${{ matrix.target }}
     needs: release
     runs-on: ${{ matrix.platform }}
+    # Map the optional signing secret to env so steps can gate on it (`secrets` is not allowed in
+    # `if:` conditions, but `env` is).
+    env:
+      MACOS_SELF_SIGNED_P12: ${{ secrets.MACOS_SELF_SIGNED_P12 }}
     strategy:
       fail-fast: false
       matrix:
@@ -162,12 +166,41 @@ jobs:
       - name: Install and build frontend
         run: cd ui && bun install && bun run build
 
+      # Optional: sign macOS builds with a STABLE self-signed certificate so the Full Disk Access
+      # grant persists across updates (TCC binds to the Designated Requirement of a stable cert
+      # instead of the per-build cdhash). This is NOT Apple notarization — Gatekeeper still requires
+      # the user to "Open Anyway" once. To enable: create a self-signed code-signing cert once,
+      # export it as a .p12, and set these repo secrets:
+      #   MACOS_SELF_SIGNED_P12           (base64 of the .p12)
+      #   MACOS_SELF_SIGNED_P12_PASSWORD  (the .p12 password)
+      #   MACOS_SIGNING_IDENTITY          (the cert's common name)
+      # If the secret is absent the build stays ad-hoc/unsigned (FDA will reset on each update).
+      - name: Import self-signed signing certificate (macOS, optional)
+        if: startsWith(matrix.platform, 'macos') && env.MACOS_SELF_SIGNED_P12 != ''
+        env:
+          MACOS_SELF_SIGNED_P12_PASSWORD: ${{ secrets.MACOS_SELF_SIGNED_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/build.keychain"
+          KEYCHAIN_PWD="$(openssl rand -base64 24)"
+          security create-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN"
+          echo "$MACOS_SELF_SIGNED_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" \
+            -P "$MACOS_SELF_SIGNED_P12_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PWD" "$KEYCHAIN"
+          rm -f "$RUNNER_TEMP/cert.p12"
+
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # When set, tauri-action signs the macOS bundle (hardened runtime) with this identity.
+          APPLE_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
         with:
           projectPath: ./tauri
           args: --target ${{ matrix.target }} --config '{"build":{"beforeBuildCommand":""}}'

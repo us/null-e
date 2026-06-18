@@ -33,13 +33,33 @@
 
 ### macOS Installation Note
 
-The app is not yet signed with an Apple Developer certificate. After downloading:
+null-e is distributed as an unsigned/non-notarized `.dmg` (no Apple Developer Program). macOS
+Gatekeeper will block it on first launch — this is expected. Two ways to open it:
 
+**1. Open Anyway (no Terminal)**
+1. Drag **null-e.app** to **/Applications** and double-click it.
+2. macOS says it can't verify the developer. Open **System Settings → Privacy & Security**,
+   scroll to the bottom, and click **Open Anyway** next to null-e.
+3. Confirm **Open**. You only need to do this once per version.
+
+**2. Terminal (power users)**
 ```bash
 # Drag null-e.app to /Applications, then run:
 xattr -rd com.apple.quarantine /Applications/null-e.app
 open /Applications/null-e.app
 ```
+
+#### Full Disk Access
+
+To clean system and other-app caches, null-e needs **Full Disk Access**:
+**System Settings → Privacy & Security → Full Disk Access → enable null-e**, then **relaunch the
+app** (macOS only applies the grant to a freshly launched process). null-e's in-app guide walks
+you through this.
+
+> **Heads up:** because the app is unsigned, **updating to a new version can reset the Full Disk
+> Access grant** — macOS ties the permission to each build. If cleaning suddenly fails after an
+> update, just re-enable null-e in Full Disk Access and relaunch. (Building from source with a
+> stable self-signed certificate avoids this — see the release workflow.)
 
 ### CLI (command-line)
 
