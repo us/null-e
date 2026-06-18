@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.2](https://github.com/us/null-e/compare/v0.4.1...v0.4.2) (2026-06-18)
+
+
+### Features
+
+* **core:** faster, safer scanning and trash reclamation ([1c273c7](https://github.com/us/null-e/commit/1c273c7a07ea51ae84e1623e8e7255a2c67027cc))
+* **ui:** Pastel Bento redesign and sidebar results layout ([8493346](https://github.com/us/null-e/commit/8493346f7d888ceac34f7264ecc13bc9b39132b6))
+
 ## [0.4.1](https://github.com/us/null-e/compare/v0.4.0...v0.4.1) (2026-03-30)
 
 
