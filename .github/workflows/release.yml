@@ -199,8 +199,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # When set, tauri-action signs the macOS bundle (hardened runtime) with this identity.
-          APPLE_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          # When the MACOS_SIGNING_IDENTITY secret is set, tauri-action signs the macOS bundle with
+          # that (stable self-signed) identity. When it's absent, fall back to "-" so codesign does
+          # AD-HOC signing instead of failing — passing an empty identity makes codesign error with
+          # "specified item could not be found in the keychain" and aborts the .dmg bundle.
+          APPLE_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY != '' && secrets.MACOS_SIGNING_IDENTITY || '-' }}
         with:
           projectPath: ./tauri
           args: --target ${{ matrix.target }} --config '{"build":{"beforeBuildCommand":""}}'
