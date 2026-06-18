@@ -67,8 +67,17 @@ you through this.
 
 ### CLI (command-line)
 
+One-line install (downloads the right prebuilt binary for your OS/arch):
+
 ```bash
-cargo install null-e
+curl -fsSL https://raw.githubusercontent.com/us/null-e/main/install.sh | sh
+```
+
+Or via Cargo:
+
+```bash
+cargo install null-e        # build from source
+cargo binstall null-e       # prebuilt binary, no compile
 null-e sweep
 ```
 
