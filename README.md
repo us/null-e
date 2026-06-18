@@ -29,11 +29,11 @@
 
 | Platform | Download |
 |----------|----------|
-| **macOS (Apple Silicon)** | [Download .dmg](https://github.com/us/null-e/releases/latest/download/null-e_0.4.0_aarch64.dmg) — M1/M2/M3/M4 |
-| **macOS (Intel)** | [Download .dmg](https://github.com/us/null-e/releases/latest/download/null-e_0.4.0_x64.dmg) |
-| **Windows** | [Download .exe](https://github.com/us/null-e/releases/latest/download/null-e_0.4.0_x64-setup.exe) — 64-bit |
-| **Linux (Ubuntu/Debian)** | [Download .deb](https://github.com/us/null-e/releases/latest/download/null-e_0.4.0_amd64.deb) |
-| **Linux (Universal)** | [Download .AppImage](https://github.com/us/null-e/releases/latest/download/null-e_0.4.0_amd64.AppImage) |
+| **macOS (Apple Silicon)** | [Download .dmg](https://github.com/us/null-e/releases/latest/download/null-e_0.4.2_aarch64.dmg) — M1/M2/M3/M4 |
+| **macOS (Intel)** | [Download .dmg](https://github.com/us/null-e/releases/latest/download/null-e_0.4.2_x64.dmg) |
+| **Windows** | [Download .exe](https://github.com/us/null-e/releases/latest/download/null-e_0.4.2_x64-setup.exe) — 64-bit |
+| **Linux (Ubuntu/Debian)** | [Download .deb](https://github.com/us/null-e/releases/latest/download/null-e_0.4.2_amd64.deb) |
+| **Linux (Universal)** | [Download .AppImage](https://github.com/us/null-e/releases/latest/download/null-e_0.4.2_amd64.AppImage) |
 
 ### macOS Installation Note
 
