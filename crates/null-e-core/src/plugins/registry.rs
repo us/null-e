@@ -3,7 +3,8 @@
 use super::Plugin;
 use crate::core::{ProjectKind, ProjectMarker};
 use parking_lot::RwLock;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::ffi::OsString;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -102,10 +103,27 @@ impl PluginRegistry {
     pub fn detect_project(&self, path: &Path) -> Option<(ProjectKind, Arc<dyn Plugin>)> {
         let plugins = self.plugins.read();
 
+        // Read the candidate directory ONCE and share the immediate child names
+        // with every plugin, so each plugin can membership-check marker files
+        // instead of independently stat-ing the same paths.
+        let listing: HashSet<OsString> = match std::fs::read_dir(path) {
+            Ok(entries) => entries
+                .filter_map(|e| e.ok())
+                .map(|e| e.file_name())
+                .collect(),
+            // If the directory can't be listed, fall back to an empty set. Plugins
+            // that override `detect_with_listing` must treat a non-membership as
+            // "stat to confirm" (or fall back to `detect`) so behaviour is preserved.
+            Err(_) => HashSet::new(),
+        };
+
         // Collect all matches with their priorities
         let mut candidates: Vec<_> = plugins
             .iter()
-            .filter_map(|p| p.detect(path).map(|k| (k, Arc::clone(p), p.priority())))
+            .filter_map(|p| {
+                p.detect_with_listing(path, &listing)
+                    .map(|k| (k, Arc::clone(p), p.priority()))
+            })
             .collect();
 
         // Sort by priority (descending)

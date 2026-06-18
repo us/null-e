@@ -130,14 +130,15 @@ impl ParallelScanner {
                 // Find artifacts
                 match plugin.find_artifacts(path) {
                     Ok(mut artifacts) => {
-                        // Calculate sizes in parallel
+                        // Size + file-count in a SINGLE walk. Previously this did two independent
+                        // full-tree walks per artifact (plugin.calculate_size + count_files);
+                        // measure_tree_counted yields allocated bytes AND file count in one pass.
+                        // No plugin overrides calculate_size (its default is measure_tree(..).1 =
+                        // allocated), so this is behaviour-equivalent and ~halves per-artifact I/O.
                         artifacts.iter_mut().for_each(|artifact| {
-                            if let Ok(size) = plugin.calculate_size(artifact) {
-                                artifact.size = size;
-                            }
-                            if let Ok(count) = crate::plugins::count_files(&artifact.path) {
-                                artifact.file_count = count;
-                            }
+                            let m = crate::fsutil::measure_tree_counted(&artifact.path);
+                            artifact.size = m.allocated;
+                            artifact.file_count = m.file_count;
                         });
 
                         // Filter by minimum size if specified

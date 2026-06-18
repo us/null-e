@@ -403,32 +403,17 @@ pub fn detect_caches() -> Result<Vec<GlobalCache>> {
     Ok(caches)
 }
 
-/// Calculate size for a single cache (can be slow for large caches)
+/// Calculate size for a single cache (can be slow for large caches).
+///
+/// Reports **on-disk allocated** size (hardlink-deduped) for consistency with freed accounting.
 pub fn calculate_cache_size(cache: &mut GlobalCache) -> Result<()> {
-    use rayon::prelude::*;
-    use walkdir::WalkDir;
-
     if !cache.path.exists() {
         return Ok(());
     }
 
-    let entries: Vec<_> = WalkDir::new(&cache.path)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .collect();
-
-    let (size, count): (u64, u64) = entries
-        .par_iter()
-        .filter_map(|entry| entry.metadata().ok())
-        .filter(|m| m.is_file())
-        .fold(
-            || (0u64, 0u64),
-            |(size, count), m| (size + m.len(), count + 1),
-        )
-        .reduce(|| (0, 0), |(s1, c1), (s2, c2)| (s1 + s2, c1 + c2));
-
-    cache.size = size;
-    cache.file_count = count;
+    let m = crate::fsutil::measure_tree_counted(&cache.path);
+    cache.size = m.allocated;
+    cache.file_count = m.file_count;
 
     Ok(())
 }
@@ -451,20 +436,26 @@ pub fn clean_cache(cache: &GlobalCache, use_official_command: bool) -> Result<Cl
         return Ok(CleanResult {
             success: true,
             bytes_freed: 0,
+            bytes_pending: 0,
             method: CleanMethod::NotFound,
         });
     }
 
-    let size_before = cache.size;
+    // On-disk allocated footprint before cleaning — the honest basis for "freed".
+    let (_apparent_before, allocated_before) = crate::fsutil::measure_tree(&cache.path);
 
     // Try official command first if requested
     if use_official_command {
         if let Some(cmd) = cache.clean_command {
             let result = run_clean_command(cmd);
             if result.is_ok() {
+                // The command emptied (some of) the cache; measure what actually left disk.
+                let (_apparent_after, allocated_after) = crate::fsutil::measure_tree(&cache.path);
+                let bytes_freed = allocated_before.saturating_sub(allocated_after);
                 return Ok(CleanResult {
                     success: true,
-                    bytes_freed: size_before,
+                    bytes_freed,
+                    bytes_pending: 0,
                     method: CleanMethod::OfficialCommand(cmd.to_string()),
                 });
             }
@@ -472,15 +463,12 @@ pub fn clean_cache(cache: &GlobalCache, use_official_command: bool) -> Result<Cl
         }
     }
 
-    // Manual deletion — delete_path returns actual bytes removed
-    match crate::trash::delete_path(&cache.path, crate::trash::DeleteMethod::Permanent) {
-        Ok(bytes_removed) => Ok(CleanResult {
+    // Manual deletion (Permanent) — report the real freed bytes from the outcome.
+    match crate::trash::delete_path_detailed(&cache.path, crate::trash::DeleteMethod::Permanent) {
+        Ok(outcome) => Ok(CleanResult {
             success: true,
-            bytes_freed: if bytes_removed > 0 {
-                bytes_removed
-            } else {
-                size_before
-            },
+            bytes_freed: outcome.freed,
+            bytes_pending: outcome.pending,
             method: CleanMethod::ManualDelete,
         }),
         Err(e) => Err(e),
@@ -515,7 +503,10 @@ fn run_clean_command(cmd: &str) -> Result<()> {
 #[derive(Debug)]
 pub struct CleanResult {
     pub success: bool,
+    /// Bytes returned to free space now (Permanent/official command).
     pub bytes_freed: u64,
+    /// Bytes pending reclamation (always 0 for caches — they are permanently deleted).
+    pub bytes_pending: u64,
     pub method: CleanMethod,
 }
 

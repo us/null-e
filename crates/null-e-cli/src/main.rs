@@ -2,6 +2,10 @@
 //!
 //! 🤖 Send your dev cruft to /dev/null with style!
 
+// Explicit descending comparators (`b.x.cmp(&a.x)`) are kept deliberately over
+// `sort_by_key(|e| Reverse(e.x))` for readability at the call sites.
+#![allow(clippy::unnecessary_sort_by)]
+
 mod tui;
 
 use clap::{Parser, Subcommand, ValueEnum};

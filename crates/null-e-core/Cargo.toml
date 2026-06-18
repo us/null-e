@@ -52,6 +52,10 @@ tracing-subscriber = { workspace = true }
 # Docker (optional)
 bollard = { version = "0.20", optional = true }
 
+# Unix syscalls (statfs/statvfs, chflags, lstat flags) for honest disk accounting + robust deletion
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 tempfile = { workspace = true }
 assert_fs = { workspace = true }

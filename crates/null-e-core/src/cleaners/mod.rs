@@ -42,6 +42,43 @@ use std::borrow::Cow;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
+/// Re-export of `rayon` so downstream crates (e.g. the Tauri GUI) can drive cleaner detection in
+/// parallel without taking a direct dependency on `rayon`. Keeping the re-export here lets the
+/// GUI's `collect_cleanable_items` fan the cleaners out across a thread pool.
+pub use rayon;
+
+/// `~/Library/Caches` child directories that are *owned* by a specialized cleaner.
+///
+/// Each tuple is `(dir-name-prefix, owning-cleaner-id)`. [`system::SystemCleaner`] walks the
+/// per-app subdirectories of `~/Library/Caches` and would otherwise re-measure these subtrees that
+/// a specialized cleaner (IDE, ML, ...) already detects — double-walking the same bytes and
+/// emitting the cache twice. `SystemCleaner` skips any child whose directory name *starts with* one
+/// of these prefixes, so each owned cache is detected exactly once by its specialized cleaner.
+///
+/// Matching is prefix-based (`name.starts_with(prefix)`) to mirror how the specialized cleaners
+/// resolve these paths (e.g. the IDE cleaner's `com.microsoft.VSCode` entry also covers
+/// `com.microsoft.VSCode.ShipIt`).
+///
+/// IMPORTANT: this list MUST be updated whenever a specialized cleaner gains a new
+/// `~/Library/Caches/<name>` path, otherwise that cache would be double-counted again.
+pub const OWNED_CACHE_PREFIXES: &[(&str, &str)] = &[
+    // IDE cleaner (cleaners/ide.rs)
+    ("JetBrains", "ide"),                     // detect_jetbrains_macos
+    ("com.microsoft.VSCode", "ide"),          // detect_vscode (covers .VSCode and .VSCode.ShipIt)
+    ("com.todesktop.230313mzl4w4u92", "ide"), // detect_cursor (Cursor)
+    ("com.sublimetext.4", "ide"),             // detect_sublime
+    ("dev.zed.Zed", "ide"),                   // detect_zed
+];
+
+/// Returns the owning-cleaner id if `name` is a `~/Library/Caches` child owned by a specialized
+/// cleaner (see [`OWNED_CACHE_PREFIXES`]), otherwise `None`.
+pub fn owned_cache_owner(name: &str) -> Option<&'static str> {
+    OWNED_CACHE_PREFIXES
+        .iter()
+        .find(|(prefix, _)| name.starts_with(prefix))
+        .map(|(_, owner)| *owner)
+}
+
 /// A cleanable item found by a cleaner module
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CleanableItem {
@@ -104,10 +141,70 @@ impl SafetyLevel {
     }
 }
 
+/// How (and whether) an item can actually be reclaimed by the user.
+///
+/// This drives honest UI grouping and the "why can't I delete this" copy — it is the antidote to
+/// the "59 GB shows but won't free" complaint: space the user *can* reclaim is separated from
+/// space that needs admin, is OS-managed/purgeable, or is SIP-protected and unremovable by anyone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum Reclaimability {
+    /// The user's own process can delete this (the common case).
+    #[default]
+    UserReclaimable,
+    /// Root-owned — needs admin rights (v1 surfaces this, does not auto-elevate).
+    NeedsAdmin,
+    /// OS-managed / purgeable (e.g. local Time Machine snapshots) — reclaim varies, not a plain delete.
+    OsManagedPurgeable,
+    /// SIP-protected / sealed system volume — cannot be removed by any app.
+    SipProtected,
+}
+
+impl Reclaimability {
+    /// Stable string id for the DTO / UI.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::UserReclaimable => "user_reclaimable",
+            Self::NeedsAdmin => "needs_admin",
+            Self::OsManagedPurgeable => "os_managed_purgeable",
+            Self::SipProtected => "sip_protected",
+        }
+    }
+}
+
 impl CleanableItem {
     /// Check if this item exists
     pub fn exists(&self) -> bool {
         self.path.exists()
+    }
+
+    /// Classify how this item can be reclaimed (drives honest UI grouping).
+    pub fn reclaimability(&self) -> Reclaimability {
+        // Time Machine local snapshots are OS-managed/purgeable — reclaim varies.
+        let sub = self.subcategory.to_lowercase();
+        if sub.contains("time machine") || sub.contains("snapshot") {
+            return Reclaimability::OsManagedPurgeable;
+        }
+        // SIP / sealed system volume — unremovable by any app.
+        if self.path.starts_with("/System") {
+            return Reclaimability::SipProtected;
+        }
+        // Root-owned system paths need admin.
+        if crate::fsutil::is_root_owned(&self.path) {
+            return Reclaimability::NeedsAdmin;
+        }
+        Reclaimability::UserReclaimable
+    }
+
+    /// Bytes we can honestly claim are reclaimable by the user.
+    ///
+    /// 0 for OS-managed/purgeable and SIP-protected items (we won't promise space we can't free);
+    /// the item's size otherwise (incl. NeedsAdmin, which is reclaimable *with* admin rights).
+    pub fn reclaimable_bytes(&self) -> u64 {
+        match self.reclaimability() {
+            Reclaimability::OsManagedPurgeable | Reclaimability::SipProtected => 0,
+            Reclaimability::UserReclaimable | Reclaimability::NeedsAdmin => self.size,
+        }
     }
 
     /// Get age in days
@@ -173,31 +270,17 @@ impl CleanerSummary {
     }
 }
 
-/// Calculate directory size recursively
+/// Calculate directory size recursively, returning `(allocated_bytes, file_count)`.
+///
+/// Reports **on-disk allocated** size (`st_blocks * 512`, hardlink-deduped) rather than apparent
+/// size, so the figure predicts reclaimable space and stays consistent with the deletion engine's
+/// freed accounting. See [`crate::fsutil::measure_tree_counted`].
 pub fn calculate_dir_size(path: &std::path::Path) -> Result<(u64, u64)> {
-    use rayon::prelude::*;
-    use walkdir::WalkDir;
-
     if !path.exists() {
         return Ok((0, 0));
     }
-
-    let entries: Vec<_> = WalkDir::new(path)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .collect();
-
-    let (size, count): (u64, u64) = entries
-        .par_iter()
-        .filter_map(|entry| entry.metadata().ok())
-        .filter(|m| m.is_file())
-        .fold(
-            || (0u64, 0u64),
-            |(size, count), m| (size + m.len(), count + 1),
-        )
-        .reduce(|| (0, 0), |(s1, c1), (s2, c2)| (s1 + s2, c1 + c2));
-
-    Ok((size, count))
+    let m = crate::fsutil::measure_tree_counted(path);
+    Ok((m.allocated, m.file_count))
 }
 
 /// Get last modification time of a path

@@ -124,7 +124,10 @@ pub struct CleanSummaryDto {
     pub total_items: usize,
     pub succeeded: usize,
     pub failed: usize,
+    /// Bytes returned to free space now (0 for Trash mode — see `bytes_pending`).
     pub bytes_freed: u64,
+    /// Bytes pending reclamation (Trash mode: emptying the Trash will free these).
+    pub bytes_pending: u64,
     pub used_trash: bool,
     pub method_label: String,
     pub failures: Vec<CleanFailureDto>,
@@ -134,7 +137,11 @@ pub struct CleanSummaryDto {
 pub struct CleanFailureDto {
     pub path: String,
     pub reason: String,
+    /// True for Full Disk Access (TCC) failures — kept for back-compat with existing UI.
     pub is_tcc: bool,
+    /// Failure class for grouping: fda | needs_admin | sip_protected | read_only | immutable |
+    /// busy | refused | other.
+    pub category: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -171,14 +178,29 @@ pub struct CleanableItemDto {
     pub subcategory: String,
     pub icon: String,
     pub path: String,
+    /// On-disk allocated size (bytes).
     pub size: u64,
+    /// Bytes we can honestly claim are reclaimable (0 for OS-managed/purgeable & SIP-protected).
+    pub reclaimable_bytes: u64,
+    /// Reclaimability class: user_reclaimable | needs_admin | os_managed_purgeable | sip_protected.
+    pub reclaimability: String,
     pub description: String,
     pub safety_level: String,
     pub clean_command: Option<String>,
 }
 
+/// Result of system-cleaner detection: the items found plus any cleaners that errored (so the UI
+/// can honestly say "N checks were skipped" instead of silently dropping them).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DetectCleanersResultDto {
+    pub items: Vec<CleanableItemDto>,
+    pub skipped: Vec<String>,
+}
+
 impl From<CleanableItem> for CleanableItemDto {
     fn from(item: CleanableItem) -> Self {
+        let reclaimability = item.reclaimability().as_str().to_string();
+        let reclaimable_bytes = item.reclaimable_bytes();
         Self {
             name: item.name,
             category: item.category,
@@ -186,6 +208,8 @@ impl From<CleanableItem> for CleanableItemDto {
             icon: item.icon.to_string(),
             path: item.path.to_string_lossy().to_string(),
             size: item.size,
+            reclaimable_bytes,
+            reclaimability,
             description: item.description.to_string(),
             safety_level: match item.safe_to_delete {
                 SafetyLevel::Safe => "safe".to_string(),

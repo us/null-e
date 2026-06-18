@@ -141,8 +141,8 @@ impl ScanCache {
     /// Get all valid cached projects
     pub fn get_all_valid_projects(&self) -> Vec<Project> {
         self.projects
-            .iter()
-            .filter_map(|(path, _cached)| self.get_valid_project(path).map(|c| c.project.clone()))
+            .keys()
+            .filter_map(|path| self.get_valid_project(path).map(|c| c.project.clone()))
             .collect()
     }
 

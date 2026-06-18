@@ -7,6 +7,10 @@
 
 #![allow(missing_docs)]
 #![warn(rustdoc::missing_crate_level_docs)]
+// Several hot-path sorts use an explicit descending comparator (`b.x.cmp(&a.x)`), which clippy
+// flags in favour of `sort_by_key(|e| Reverse(e.x))`. The explicit form reads clearer at the call
+// sites and avoids per-element `Reverse` wrapping, so we keep it deliberately.
+#![allow(clippy::unnecessary_sort_by)]
 
 pub mod analysis;
 pub mod cache;
@@ -16,6 +20,7 @@ pub mod config;
 pub mod core;
 pub mod docker;
 pub mod error;
+pub mod fsutil;
 pub mod git;
 pub mod plugins;
 pub mod scanner;

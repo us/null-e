@@ -49,6 +49,7 @@ impl SystemCleaner {
     }
 
     #[cfg(target_os = "macos")]
+    #[allow(clippy::too_many_arguments)]
     fn detect_macos_child_dirs(
         &self,
         root: &std::path::Path,
@@ -58,6 +59,7 @@ impl SystemCleaner {
         description: &'static str,
         safe_to_delete: SafetyLevel,
         min_size: u64,
+        skip_owned_caches: bool,
     ) -> Result<Vec<CleanableItem>> {
         let mut items = Vec::new();
 
@@ -75,15 +77,23 @@ impl SystemCleaner {
                 continue;
             }
 
-            let (size, file_count) = calculate_dir_size(&path)?;
-            if size < min_size {
-                continue;
-            }
-
             let name = path
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| "unknown".to_string());
+
+            // Dedup: a `~/Library/Caches` child owned by a specialized cleaner (IDE/ML/...) is
+            // detected (and measured) by that cleaner. Skip it here BEFORE the expensive
+            // `calculate_dir_size` walk so each owned cache is detected exactly once and we don't
+            // double-walk the same subtree. See `super::OWNED_CACHE_PREFIXES`.
+            if skip_owned_caches && super::owned_cache_owner(&name).is_some() {
+                continue;
+            }
+
+            let (size, file_count) = calculate_dir_size(&path)?;
+            if size < min_size {
+                continue;
+            }
 
             items.push(CleanableItem {
                 name: format!("{label_prefix} ({name})"),
@@ -277,6 +287,7 @@ impl SystemCleaner {
                 "Temporary files. May contain files in use.",
                 SafetyLevel::Caution,
                 100_000_000,
+                false,
             )?);
             items.extend(self.detect_macos_child_dirs(
                 &std::env::temp_dir(),
@@ -286,65 +297,67 @@ impl SystemCleaner {
                 "Temporary files. May contain files in use.",
                 SafetyLevel::Caution,
                 100_000_000,
+                false,
             )?);
-
-            return Ok(items);
         }
 
-        #[cfg(target_os = "linux")]
-        let temp_paths = vec![
-            PathBuf::from("/tmp"),
-            PathBuf::from("/var/tmp"),
-            self.home.join(".cache"),
-        ];
-
-        #[cfg(target_os = "windows")]
-        let temp_paths = vec![std::env::temp_dir(), self.home.join("AppData/Local/Temp")];
-
-        #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
-        let temp_paths: Vec<PathBuf> = vec![];
-
-        for temp_path in temp_paths {
-            if !temp_path.exists() {
-                continue;
-            }
-
-            // Skip if not readable (permissions)
-            if std::fs::read_dir(&temp_path).is_err() {
-                continue;
-            }
-
-            let (size, file_count) = calculate_dir_size(&temp_path)?;
-            if size < 500_000_000 {
-                // 500MB minimum for temp
-                continue;
-            }
-
-            // Don't suggest cleaning main system cache on Linux
+        #[cfg(not(target_os = "macos"))]
+        {
             #[cfg(target_os = "linux")]
-            if temp_path == self.home.join(".cache") {
-                continue;
-            }
+            let temp_paths = vec![
+                PathBuf::from("/tmp"),
+                PathBuf::from("/var/tmp"),
+                self.home.join(".cache"),
+            ];
 
-            items.push(CleanableItem {
-                name: format!(
-                    "Temp Files ({})",
-                    temp_path
-                        .file_name()
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_else(|| "tmp".to_string())
-                ),
-                category: "System".to_string(),
-                subcategory: "Temp".to_string(),
-                icon: "🔥",
-                path: temp_path,
-                size,
-                file_count: Some(file_count),
-                last_modified: None,
-                description: Cow::Borrowed("Temporary files. May contain files in use."),
-                safe_to_delete: SafetyLevel::Caution,
-                clean_command: None,
-            });
+            #[cfg(target_os = "windows")]
+            let temp_paths = vec![std::env::temp_dir(), self.home.join("AppData/Local/Temp")];
+
+            #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+            let temp_paths: Vec<PathBuf> = vec![];
+
+            for temp_path in temp_paths {
+                if !temp_path.exists() {
+                    continue;
+                }
+
+                // Skip if not readable (permissions)
+                if std::fs::read_dir(&temp_path).is_err() {
+                    continue;
+                }
+
+                let (size, file_count) = calculate_dir_size(&temp_path)?;
+                if size < 500_000_000 {
+                    // 500MB minimum for temp
+                    continue;
+                }
+
+                // Don't suggest cleaning main system cache on Linux
+                #[cfg(target_os = "linux")]
+                if temp_path == self.home.join(".cache") {
+                    continue;
+                }
+
+                items.push(CleanableItem {
+                    name: format!(
+                        "Temp Files ({})",
+                        temp_path
+                            .file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_else(|| "tmp".to_string())
+                    ),
+                    category: "System".to_string(),
+                    subcategory: "Temp".to_string(),
+                    icon: "🔥",
+                    path: temp_path,
+                    size,
+                    file_count: Some(file_count),
+                    last_modified: None,
+                    description: Cow::Borrowed("Temporary files. May contain files in use."),
+                    safe_to_delete: SafetyLevel::Caution,
+                    clean_command: None,
+                });
+            }
         }
 
         Ok(items)
@@ -363,27 +376,44 @@ impl SystemCleaner {
         if let Ok(output) = output {
             if output.status.success() {
                 let stdout = String::from_utf8_lossy(&output.stdout);
-                let snapshot_count = stdout.lines().count().saturating_sub(1); // First line is header
+                // `listlocalsnapshotdates /` prints a header line ("Snapshot dates for disk /:")
+                // followed by one date per snapshot.
+                let snapshot_count = stdout
+                    .lines()
+                    .filter(|l| l.trim().starts_with("20")) // snapshot date lines start with the year
+                    .count();
 
                 if snapshot_count > 0 {
-                    // Estimate size (typically 1-10GB per snapshot)
-                    // We can't easily get exact size without parsing more output
-                    let estimated_size = (snapshot_count as u64) * 2_000_000_000; // ~2GB per snapshot
-
+                    // We deliberately do NOT invent a size: snapshot space is COW-shared and
+                    // OS-managed/purgeable — the real reclaim is unknowable cheaply. Reported as
+                    // OsManagedPurgeable (reclaimable_bytes = 0) so we never promise space we
+                    // can't free. Thinning is offered as an explicit action.
+                    //
+                    // The reclaim command is the documented, valid `thinlocalsnapshots` (the old
+                    // `deletelocalsnapshots /` was not a valid bulk delete). Urgency 4 = most
+                    // aggressive; the large byte target asks the OS to thin as much as possible.
                     items.push(CleanableItem {
-                        name: format!("Time Machine Snapshots ({} snapshots)", snapshot_count),
+                        name: format!(
+                            "Time Machine local snapshots ({} snapshot{})",
+                            snapshot_count,
+                            if snapshot_count == 1 { "" } else { "s" }
+                        ),
                         category: "System".to_string(),
                         subcategory: "Time Machine".to_string(),
                         icon: "⏰",
                         path: PathBuf::from("/"),
-                        size: estimated_size,
+                        size: 0,
                         file_count: Some(snapshot_count as u64),
                         last_modified: None,
                         description: Cow::Borrowed(
-                            "Local Time Machine snapshots. Deleting frees space.",
+                            "Local Time Machine snapshots are OS-managed (purgeable). Actual space \
+                             reclaimed varies; thinning asks macOS to free what it can. Your Time \
+                             Machine backups on external drives are unaffected.",
                         ),
                         safe_to_delete: SafetyLevel::Caution,
-                        clean_command: Some("tmutil deletelocalsnapshots /".to_string()),
+                        clean_command: Some(
+                            "tmutil thinlocalsnapshots / 999999999999 4".to_string(),
+                        ),
                     });
                 }
             }
@@ -398,27 +428,19 @@ impl SystemCleaner {
 
         #[cfg(target_os = "macos")]
         {
-            // User caches
-            let user_cache = self.home.join("Library/Caches");
-            if user_cache.exists() {
-                let (size, file_count) = calculate_dir_size(&user_cache)?;
-                if size > 1_000_000_000 {
-                    // 1GB
-                    items.push(CleanableItem {
-                        name: "User Caches".to_string(),
-                        category: "System".to_string(),
-                        subcategory: "Caches".to_string(),
-                        icon: "🗄️",
-                        path: user_cache,
-                        size,
-                        file_count: Some(file_count),
-                        last_modified: None,
-                        description: Cow::Borrowed("Application caches. Apps will rebuild them."),
-                        safe_to_delete: SafetyLevel::SafeWithCost,
-                        clean_command: None,
-                    });
-                }
-            }
+            // User caches (per-app subdirectories, not the root ~/Library/Caches itself).
+            // `skip_owned_caches = true`: children owned by a specialized cleaner (IDE/ML/...) are
+            // detected by that cleaner, so we skip them here to avoid double-walking the subtree.
+            items.extend(self.detect_macos_child_dirs(
+                &self.home.join("Library/Caches"),
+                "Cache",
+                "Caches",
+                "🗄️",
+                "Application cache. Apps will rebuild it.",
+                SafetyLevel::SafeWithCost,
+                100_000_000,
+                true,
+            )?);
 
             if let Some(var_folders_cache) = Self::macos_var_folders_dir("C") {
                 items.extend(self.detect_macos_child_dirs(
@@ -429,6 +451,7 @@ impl SystemCleaner {
                     "Per-user macOS cache. Apps may recreate it.",
                     SafetyLevel::SafeWithCost,
                     100_000_000,
+                    false,
                 )?);
             }
 
@@ -560,6 +583,82 @@ impl SystemCleaner {
         }
 
         Ok(items)
+    }
+}
+
+#[cfg(all(test, target_os = "macos"))]
+mod tests {
+    use super::*;
+
+    /// An owned-prefix child of a `~/Library/Caches`-style root must NOT be emitted by
+    /// `SystemCleaner` (its specialized cleaner owns it), while a non-owned child IS emitted.
+    #[test]
+    fn test_system_skips_owned_cache_child_dirs() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        // Owned child (IDE-owned prefix) + a non-owned child, each above the min_size threshold.
+        let owned = root.join("com.microsoft.VSCode");
+        let other = root.join("com.example.Something");
+        std::fs::create_dir_all(&owned).unwrap();
+        std::fs::create_dir_all(&other).unwrap();
+        // 2 MiB each so both clear the 1 MiB min_size used below.
+        std::fs::write(owned.join("blob.bin"), vec![0u8; 2 * 1024 * 1024]).unwrap();
+        std::fs::write(other.join("blob.bin"), vec![0u8; 2 * 1024 * 1024]).unwrap();
+
+        let cleaner = SystemCleaner::new().unwrap();
+        let items = cleaner
+            .detect_macos_child_dirs(
+                root,
+                "Cache",
+                "Caches",
+                "🗄️",
+                "Application cache. Apps will rebuild it.",
+                SafetyLevel::SafeWithCost,
+                1_000_000,
+                true, // skip owned caches
+            )
+            .unwrap();
+
+        // The owned child must be skipped; the non-owned child must be present.
+        assert!(
+            !items.iter().any(|i| i.path == owned),
+            "owned-prefix cache child should be skipped by SystemCleaner"
+        );
+        assert!(
+            items.iter().any(|i| i.path == other),
+            "non-owned cache child should still be detected"
+        );
+    }
+
+    /// When `skip_owned_caches` is false (e.g. var_folders/C, temp dirs), owned prefixes are not
+    /// special-cased — behaviour for those roots is unchanged.
+    #[test]
+    fn test_owned_prefix_not_skipped_when_flag_disabled() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+        let owned = root.join("com.microsoft.VSCode");
+        std::fs::create_dir_all(&owned).unwrap();
+        std::fs::write(owned.join("blob.bin"), vec![0u8; 2 * 1024 * 1024]).unwrap();
+
+        let cleaner = SystemCleaner::new().unwrap();
+        let items = cleaner
+            .detect_macos_child_dirs(
+                root,
+                "Temp Files",
+                "Temp",
+                "🔥",
+                "Temporary files. May contain files in use.",
+                SafetyLevel::Caution,
+                1_000_000,
+                false,
+            )
+            .unwrap();
+
+        assert!(
+            items.iter().any(|i| i.path == owned),
+            "with flag disabled, owned prefix must not be skipped"
+        );
     }
 }
 

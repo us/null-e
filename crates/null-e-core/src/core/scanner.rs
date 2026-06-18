@@ -8,7 +8,16 @@ use parking_lot::Mutex;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+/// Minimum interval between `current_path` updates.
+///
+/// The UI only samples `current_path` roughly every 100ms, so updating it more
+/// frequently just wastes a Mutex lock + `PathBuf` store on every directory in
+/// the hot walk loop. Time-gating to this interval preserves the observable
+/// behaviour (the path the UI reads is at most ~100ms stale) while removing the
+/// per-directory overhead.
+const CURRENT_PATH_UPDATE_INTERVAL: Duration = Duration::from_millis(100);
 
 /// Configuration for scanning operations
 #[derive(Debug, Clone)]
@@ -121,6 +130,11 @@ pub struct ScanProgress {
     pub total_size_found: AtomicU64,
     /// Currently scanning path
     pub current_path: Mutex<PathBuf>,
+    /// Last time `current_path` was updated (for time-gating updates).
+    ///
+    /// `None` until the first update so the very first `set_current_path` call
+    /// always goes through regardless of timing.
+    last_path_update: Mutex<Option<Instant>>,
     /// Errors encountered during scan
     pub errors: Mutex<Vec<ScanError>>,
     /// Whether scan is complete
@@ -150,8 +164,21 @@ impl ScanProgress {
         self.total_size_found.fetch_add(size, Ordering::Relaxed);
     }
 
-    /// Update current path
+    /// Update current path.
+    ///
+    /// Time-gated: in the hot walk loop this is called for every directory, but
+    /// the UI only samples `current_path` ~every 100ms. We therefore skip the
+    /// Mutex lock + store unless at least [`CURRENT_PATH_UPDATE_INTERVAL`] has
+    /// elapsed since the last update. The very first update always goes through.
     pub fn set_current_path(&self, path: PathBuf) {
+        {
+            let now = Instant::now();
+            let mut last = self.last_path_update.lock();
+            match *last {
+                Some(prev) if now.duration_since(prev) < CURRENT_PATH_UPDATE_INTERVAL => return,
+                _ => *last = Some(now),
+            }
+        }
         *self.current_path.lock() = path;
     }
 
@@ -324,6 +351,25 @@ mod tests {
         assert_eq!(snapshot.directories_scanned, 2);
         assert_eq!(snapshot.projects_found, 1);
         assert_eq!(snapshot.total_size_found, 1000);
+    }
+
+    #[test]
+    fn test_set_current_path_is_time_gated() {
+        let progress = ScanProgress::new();
+
+        // First update always goes through.
+        progress.set_current_path(PathBuf::from("/first"));
+        assert_eq!(progress.snapshot().current_path, PathBuf::from("/first"));
+
+        // A second, immediate update is within the gate interval and is skipped,
+        // so the stored path is unchanged.
+        progress.set_current_path(PathBuf::from("/second"));
+        assert_eq!(progress.snapshot().current_path, PathBuf::from("/first"));
+
+        // After the interval elapses, the next update goes through.
+        std::thread::sleep(CURRENT_PATH_UPDATE_INTERVAL + Duration::from_millis(20));
+        progress.set_current_path(PathBuf::from("/third"));
+        assert_eq!(progress.snapshot().current_path, PathBuf::from("/third"));
     }
 
     #[test]

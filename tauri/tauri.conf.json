@@ -48,7 +48,7 @@
     "category": "DeveloperTool",
     "macOS": {
       "minimumSystemVersion": "10.15",
-      "entitlements": "../Entitlements.plist"
+      "entitlements": "Entitlements.plist"
     },
     "windows": {
       "nsis": {
@@ -60,7 +60,7 @@
         "section": "utils"
       }
     },
-    "createUpdaterArtifacts": "v1Compatible"
+    "createUpdaterArtifacts": true
   },
   "plugins": {
     "shell": {

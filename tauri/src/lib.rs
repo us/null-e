@@ -28,11 +28,14 @@ pub fn run() {
             commands::cache::detect_caches,
             commands::cache::clean_cache,
             commands::cleaners::detect_cleaners,
+            commands::cleaners::run_system_action,
             commands::config::get_config,
             commands::config::save_config,
             commands::system::get_disk_info,
             commands::system::get_app_version,
             commands::system::check_fda_status,
+            commands::system::open_privacy_settings,
+            commands::system::empty_trash,
         ])
         .setup(|app| {
             // System tray menu

@@ -23,6 +23,8 @@ pub use swift::SwiftPlugin;
 
 use crate::core::{Artifact, ProjectKind, ProjectMarker};
 use crate::error::Result;
+use std::collections::HashSet;
+use std::ffi::OsString;
 use std::path::Path;
 
 /// Trait that all language/framework plugins must implement
@@ -41,6 +43,19 @@ pub trait Plugin: Send + Sync {
 
     /// Detect if path is a project root for this plugin
     fn detect(&self, path: &Path) -> Option<ProjectKind>;
+
+    /// Detect using a pre-computed listing of the candidate directory's immediate
+    /// child names. The default delegates to [`Plugin::detect`], so plugins that
+    /// do not override this keep behaving exactly as before. Plugins can override
+    /// this to avoid re-stat-ing marker files that are already known to be present
+    /// (or absent) from the shared listing.
+    fn detect_with_listing(
+        &self,
+        path: &Path,
+        _listing: &HashSet<OsString>,
+    ) -> Option<ProjectKind> {
+        self.detect(path)
+    }
 
     /// Find cleanable artifacts in a project directory
     fn find_artifacts(&self, project_root: &Path) -> Result<Vec<Artifact>>;
@@ -71,29 +86,15 @@ pub trait Plugin: Send + Sync {
     }
 }
 
-/// Calculate directory size using parallel walk
+/// Calculate directory size, reporting **on-disk allocated** bytes (hardlink-deduped).
+///
+/// See [`crate::fsutil::measure_tree`] — allocated size predicts reclaimable space and matches
+/// the deletion engine's freed accounting (apparent `st_size` would overstate compressed files).
 pub fn default_calculate_size(path: &Path) -> Result<u64> {
-    use rayon::prelude::*;
-    use walkdir::WalkDir;
-
     if !path.exists() {
         return Ok(0);
     }
-
-    // For small directories, use simple walk
-    let entries: Vec<_> = WalkDir::new(path)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .collect();
-
-    let size: u64 = entries
-        .par_iter()
-        .filter_map(|entry| entry.metadata().ok())
-        .filter(|m| m.is_file())
-        .map(|m| m.len())
-        .sum();
-
-    Ok(size)
+    Ok(crate::fsutil::measure_tree(path).1)
 }
 
 /// Count files in a directory

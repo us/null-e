@@ -61,10 +61,10 @@ impl EventHandler {
                                 return;
                             }
                         }
-                        Ok(CrosstermEvent::Resize(w, h)) => {
-                            if tx.send(Event::Resize(w, h)).is_err() {
-                                return;
-                            }
+                        Ok(CrosstermEvent::Resize(w, h))
+                            if tx.send(Event::Resize(w, h)).is_err() =>
+                        {
+                            return;
                         }
                         _ => {}
                     }
