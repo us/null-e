@@ -1,0 +1,9 @@
+# GitHub "Sponsor" button configuration.
+# The GitHub Sponsors entry only works once the account below is enrolled in
+# GitHub Sponsors (github.com/sponsors — requires identity/payout setup).
+github: [us]
+
+# Other platforms you can enable later (uncomment + fill in your handle):
+# ko_fi: your_handle
+# buy_me_a_coffee: your_handle
+# custom: ["https://www.paypal.me/your_handle"]

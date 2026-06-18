@@ -11,6 +11,10 @@
 
 [Download](#download) • [Quick Start](#quick-start) • [Docs](https://us.github.io/null-e) • [Changelog](CHANGELOG.md)
 
+<br />
+
+<img src="assets/screenshot.png" alt="null-e desktop app — sidebar of reclaimable disk space grouped by category with a donut summary and drill-down list" width="860" />
+
 </div>
 
 ---
