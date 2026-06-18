@@ -23,7 +23,7 @@ export function ImpactCards({ items, selectedPaths, onToggle }: ImpactCardsProps
       <div className="text-[11px] uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
         Biggest items
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-3">
         {items.map((item) => {
           const selected = selectedPaths.has(item.path);
           const color = getSizeHeatColor(item.size);
@@ -32,10 +32,10 @@ export function ImpactCards({ items, selectedPaths, onToggle }: ImpactCardsProps
             <button
               key={item.path}
               onClick={() => onToggle(item.path)}
-              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none ${
+              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-[22px] border transition-all focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none ${
                 selected
                   ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)]'
-                  : 'border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:border-[var(--color-text-muted)]'
+                  : 'bento bento-lift'
               }`}
               aria-label={`${item.name} — ${formatSize(item.size)}`}
               aria-pressed={selected}

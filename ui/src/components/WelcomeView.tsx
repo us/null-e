@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Search, Settings, AlertCircle, ShieldAlert, ExternalLink } from 'lucide-react';
+import { Search, Settings, AlertCircle, ShieldAlert, ExternalLink, RotateCcw } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { open } from '@tauri-apps/plugin-shell';
+import { relaunch } from '@tauri-apps/plugin-process';
 import { commands, type DiskInfoDto } from '@/lib/tauri';
 import { formatSize } from '@/lib/format';
 import { useScanStore } from '@/stores/scan-store';
@@ -13,6 +13,7 @@ export function WelcomeView() {
   const { startScan, error: scanError } = useScanStore();
   const fdaStatus = useUiStore((s) => s.fdaStatus);
   const fdaDismissed = useUiStore((s) => s.fdaDismissed);
+  const fdaLostAfterUpdate = useUiStore((s) => s.fdaLostAfterUpdate);
 
   useEffect(() => {
     commands.getDiskInfo().then(setDiskInfo).catch(console.error);
@@ -48,9 +49,17 @@ export function WelcomeView() {
 
   const openFdaSettings = async () => {
     try {
-      await open('x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles');
+      await commands.openPrivacySettings();
     } catch (err) {
       console.error('Failed to open Full Disk Access settings:', err);
+    }
+  };
+
+  const handleRelaunch = async () => {
+    try {
+      await relaunch();
+    } catch (err) {
+      console.error('Failed to relaunch:', err);
     }
   };
 
@@ -64,7 +73,7 @@ export function WelcomeView() {
       {/* Logo */}
       <div className="flex flex-col items-center gap-3">
         <img src="/logo.png" alt="null-e mascot" width={240} height={240} className="rounded-3xl" />
-        <span className="text-5xl font-bold text-[var(--color-text)] tracking-tight">
+        <span className="display text-5xl text-[var(--color-text)] tracking-tight">
           null-e
         </span>
       </div>
@@ -94,29 +103,44 @@ export function WelcomeView() {
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-2xl rounded-2xl border border-amber-500/25 bg-amber-500/10 px-5 py-4"
+          className="w-full max-w-2xl rounded-2xl border border-[var(--color-warning-border)] bg-[var(--color-warning-surface)] px-5 py-4"
         >
           <div className="flex gap-4">
-            <div className="mt-0.5 rounded-xl bg-amber-500/15 p-2 text-amber-300">
+            <div className="mt-0.5 rounded-xl bg-[var(--color-warning-surface)] p-2 text-[var(--color-warning-text)]">
               <ShieldAlert size={18} />
             </div>
             <div className="flex-1">
               <div className="flex flex-col gap-1">
                 <h3 className="text-sm font-semibold text-[var(--color-text)]">
-                  Full Disk Access recommended
+                  {fdaLostAfterUpdate
+                    ? 'An update reset Full Disk Access'
+                    : 'Enable Full Disk Access'}
                 </h3>
                 <p className="text-sm text-[var(--color-text-secondary)]">
-                  null-e can scan and clean more reliably on macOS when Full Disk Access is enabled.
-                  Without it, protected folders may fail with “Operation not permitted”.
+                  {fdaLostAfterUpdate
+                    ? 'You granted Full Disk Access before, but updating an unsigned app makes macOS reset the permission. Re-enable null-e and relaunch.'
+                    : 'macOS hides system and other-app caches behind Full Disk Access. Without it, those deletions fail with “Operation not permitted”.'}
                 </p>
               </div>
+              <ol className="mt-3 space-y-1.5 text-sm text-[var(--color-text-secondary)]">
+                <li><span className="font-semibold text-[var(--color-text)]">1.</span> Click <span className="font-medium">Open Settings</span> below.</li>
+                <li><span className="font-semibold text-[var(--color-text)]">2.</span> Enable <span className="font-medium">null-e</span> in the Full Disk Access list (use <span className="font-medium">+</span> to add it if it isn’t there).</li>
+                <li><span className="font-semibold text-[var(--color-text)]">3.</span> Click <span className="font-medium">Relaunch</span> — macOS only applies the grant to a freshly launched app.</li>
+              </ol>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   onClick={() => { void openFdaSettings(); }}
-                  className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-3.5 py-2 text-sm font-medium text-slate-950 transition-colors hover:bg-amber-300"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[var(--color-warning)] px-3.5 py-2 text-sm font-medium text-[var(--color-warning-strong-text)] transition-colors hover:bg-[var(--color-warning-hover)]"
                 >
                   <ExternalLink size={14} />
                   Open Settings
+                </button>
+                <button
+                  onClick={() => { void handleRelaunch(); }}
+                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-3.5 py-2 text-sm font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
+                >
+                  <RotateCcw size={14} />
+                  Relaunch
                 </button>
                 <button
                   onClick={() => useUiStore.getState().dismissFda()}
@@ -130,17 +154,56 @@ export function WelcomeView() {
         </motion.div>
       )}
 
-      {/* Error message */}
-      {scanError && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 text-[var(--color-danger)] text-sm max-w-md"
-        >
-          <AlertCircle size={16} className="shrink-0" />
-          <span>{scanError}</span>
-        </motion.div>
-      )}
+      {/* Error message — categorized with a next step instead of a raw backend string */}
+      {scanError && (() => {
+        const lower = scanError.toLowerCase();
+        const isPermission =
+          lower.includes('permission') ||
+          lower.includes('operation not permitted') ||
+          lower.includes('not permitted') ||
+          lower.includes('os error 1') ||
+          lower.includes('os error 13') ||
+          lower.includes('denied');
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-md rounded-xl border border-[var(--color-danger)]/25 bg-[var(--color-danger)]/10 px-4 py-3"
+          >
+            <div className="flex items-start gap-2">
+              <AlertCircle size={16} className="mt-0.5 shrink-0 text-[var(--color-danger)]" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[var(--color-text)]">
+                  {isPermission ? 'Scan blocked by macOS permissions' : 'Scan failed'}
+                </p>
+                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                  {isPermission
+                    ? 'macOS denied access to some locations. Grant Full Disk Access to null-e, relaunch, then scan again.'
+                    : scanError}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {isPermission && (
+                    <button
+                      onClick={() => { void openFdaSettings(); }}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-warning)] px-3 py-1.5 text-xs font-medium text-[var(--color-warning-strong-text)] transition-colors hover:bg-[var(--color-warning-hover)]"
+                    >
+                      <ExternalLink size={13} />
+                      Open Full Disk Access
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { void handleScan(); }}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-xs font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-hover)]"
+                  >
+                    <RotateCcw size={13} />
+                    Retry
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        );
+      })()}
 
       {/* Scan CTA */}
       <button
@@ -155,7 +218,7 @@ export function WelcomeView() {
       <p className="text-xs text-[var(--color-text-muted)] max-w-sm text-center">
         {scanPaths.length > 0
           ? `Scanning: ${scanPaths.join(', ')}`
-          : 'No scan paths configured — add paths in settings'}
+          : 'Will scan your home folder — add specific paths in settings to narrow it down'}
       </p>
 
       {/* Settings link */}

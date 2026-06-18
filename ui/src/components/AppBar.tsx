@@ -20,10 +20,12 @@ export function AppBar() {
       data-tauri-drag-region
       className="flex items-center justify-between px-5 h-12 shrink-0 border-b border-[var(--color-border)] glass"
     >
-      <div data-tauri-drag-region className="flex items-center gap-2">
-        <img src="/logo.png" alt="null-e" width={22} height={22} className="rounded" />
-        <span className="text-base font-semibold text-[var(--color-text)]">
-          null-e
+      <div data-tauri-drag-region className="flex items-center gap-2.5">
+        <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-[var(--color-primary-soft)] ring-1 ring-[var(--color-border)] overflow-hidden shadow-sm">
+          <img src="/logo.png" alt="null-e" width={26} height={26} className="rounded-lg" />
+        </div>
+        <span className="display text-lg text-[var(--color-text)] tracking-tight">
+          null<span className="text-[var(--color-primary)]">·</span>e
         </span>
       </div>
 

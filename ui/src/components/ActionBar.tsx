@@ -22,7 +22,7 @@ export function ActionBar({
     >
       <button
         onClick={onClean}
-        className="w-full flex items-center justify-center gap-3 py-3 rounded-xl text-white font-semibold bg-[var(--color-danger)] hover:opacity-90 transition-all active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-white outline-none"
+        className="w-full flex items-center justify-center gap-3 py-3.5 rounded-full text-white font-semibold bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] transition-all active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
       >
         <Trash2 size={18} />
         <span className="tabular-nums">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { FolderSearch, Package, HardDrive, Clock, X } from 'lucide-react';
 import { useScanStore } from '@/stores/scan-store';
 import { useUiStore } from '@/stores/ui-store';
@@ -7,6 +7,7 @@ import { formatSize, formatNumber } from '@/lib/format';
 
 export function ScanningView() {
   const { progress, cancelScan } = useScanStore();
+  const reduceMotion = useReducedMotion();
   const [elapsed, setElapsed] = useState(0);
   const startRef = useRef(Date.now());
 
@@ -39,22 +40,26 @@ export function ScanningView() {
     >
       {/* Title */}
       <div className="flex flex-col items-center gap-2">
-        <motion.img
-          src="/logo.png"
-          alt="null-e"
-          width={96}
-          height={96}
-          className="rounded-2xl"
-          animate={{
-            rotate: [0, -15, 15, -10, 10, -5, 360],
-            scale: [1, 1.08, 0.95, 1.05, 0.98, 1.02, 1],
-          }}
-          transition={{
-            duration: 2.5,
-            repeat: Infinity,
-            ease: [0.4, 0, 0.2, 1],
-          }}
-        />
+        {reduceMotion ? (
+          <img src="/logo.png" alt="null-e" width={96} height={96} className="rounded-2xl" />
+        ) : (
+          <motion.img
+            src="/logo.png"
+            alt="null-e"
+            width={96}
+            height={96}
+            className="rounded-2xl"
+            animate={{
+              rotate: [0, -15, 15, -10, 10, -5, 360],
+              scale: [1, 1.08, 0.95, 1.05, 0.98, 1.02, 1],
+            }}
+            transition={{
+              duration: 2.5,
+              repeat: Infinity,
+              ease: [0.4, 0, 0.2, 1],
+            }}
+          />
+        )}
         <span className="text-lg font-semibold text-[var(--color-text)]">
           Scanning...
         </span>
@@ -63,15 +68,19 @@ export function ScanningView() {
       {/* Indeterminate progress bar */}
       <div className="w-80">
         <div className="w-full h-2.5 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden relative">
-          <motion.div
-            className="absolute h-full w-1/3 rounded-full bg-gradient-to-r from-transparent via-[var(--color-primary)] to-transparent"
-            animate={{ x: ['-100%', '400%'] }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
-          />
+          {reduceMotion ? (
+            <div className="absolute h-full w-1/3 rounded-full bg-[var(--color-primary)] opacity-60" />
+          ) : (
+            <motion.div
+              className="absolute h-full w-1/3 rounded-full bg-gradient-to-r from-transparent via-[var(--color-primary)] to-transparent"
+              animate={{ x: ['-100%', '400%'] }}
+              transition={{
+                duration: 1.5,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+            />
+          )}
         </div>
       </div>
 
@@ -108,10 +117,19 @@ export function ScanningView() {
         </p>
       )}
 
+      {/* Reassurance for long scans — a quiet hint that a multi-minute scan of a large folder
+          isn't stuck. */}
+      {elapsed >= 15 && (
+        <p className="text-xs text-[var(--color-text-muted)] max-w-sm text-center">
+          Scanning a large folder can take a few minutes — null-e is still working.
+        </p>
+      )}
+
       {/* Cancel */}
       <button
+        type="button"
         onClick={handleCancel}
-        className="flex items-center gap-2 px-5 py-2 rounded-xl text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors border border-[var(--color-border)]"
+        className="pill flex items-center gap-2 px-5 py-2 text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
       >
         <X size={14} />
         Cancel

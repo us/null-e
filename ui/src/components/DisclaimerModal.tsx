@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, AlertTriangle, Info } from 'lucide-react';
 import { useUiStore } from '@/stores/ui-store';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 
 const INFO_BLOCKS = [
   {
@@ -27,6 +28,12 @@ const INFO_BLOCKS = [
 export function DisclaimerModal() {
   const [accepted, setAccepted] = useState(false);
   const acceptDisclaimer = useUiStore((s) => s.acceptDisclaimer);
+  const trapRef = useFocusTrap<HTMLFormElement>(true);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (accepted) acceptDisclaimer();
+  };
 
   return (
     <>
@@ -43,11 +50,15 @@ export function DisclaimerModal() {
         transition={{ duration: 0.2 }}
         className="fixed inset-0 flex items-center justify-center z-50 p-4"
       >
-        <div
-          className="w-full max-w-lg rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl"
+        <form
+          ref={trapRef}
+          onSubmit={handleSubmit}
+          tabIndex={-1}
+          className="w-full max-w-lg glass-modal outline-none"
           role="dialog"
           aria-modal="true"
           aria-labelledby="disclaimer-title"
+          aria-describedby="disclaimer-body"
         >
           {/* Header */}
           <div className="px-6 pt-6 pb-4">
@@ -60,10 +71,10 @@ export function DisclaimerModal() {
           </div>
 
           {/* Body */}
-          <div className="px-6 pb-4 space-y-4">
+          <div id="disclaimer-body" className="px-6 pb-4 space-y-4">
             {INFO_BLOCKS.map(({ icon: Icon, title, description }) => (
               <div key={title} className="flex gap-3">
-                <div className="flex items-center justify-center w-10 h-10 shrink-0 rounded-full bg-[var(--color-primary)]/10">
+                <div className="tint-lav flex items-center justify-center w-10 h-10 shrink-0 rounded-xl">
                   <Icon size={20} className="text-[var(--color-primary)]" />
                 </div>
                 <div>
@@ -94,9 +105,9 @@ export function DisclaimerModal() {
           {/* Footer */}
           <div className="flex items-center justify-end px-6 pb-6">
             <button
-              onClick={acceptDisclaimer}
+              type="submit"
               disabled={!accepted}
-              className={`px-4 py-2 rounded-lg text-sm font-medium text-white bg-[var(--color-primary)] transition-colors focus-visible:ring-2 focus-visible:ring-white outline-none ${
+              className={`pill px-4 py-2 text-sm font-medium text-white bg-[var(--color-primary)] transition-colors focus-visible:ring-2 focus-visible:ring-white outline-none ${
                 accepted
                   ? 'hover:bg-[var(--color-primary-hover)]'
                   : 'opacity-50 cursor-not-allowed'
@@ -105,7 +116,7 @@ export function DisclaimerModal() {
               Continue
             </button>
           </div>
-        </div>
+        </form>
       </motion.div>
     </>
   );

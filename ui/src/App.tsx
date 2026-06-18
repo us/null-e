@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { AppBar } from '@/components/AppBar';
 import { WelcomeView } from '@/components/WelcomeView';
 import { ScanningView } from '@/components/ScanningView';
@@ -12,6 +12,7 @@ import { useScanStore } from '@/stores/scan-store';
 import { useTheme } from '@/hooks/useTheme';
 import { useScanProgress } from '@/hooks/useScanProgress';
 import { useFdaCheck } from '@/hooks/useFdaCheck';
+import { commands } from '@/lib/tauri';
 
 export function App() {
   useTheme();
@@ -32,6 +33,27 @@ function AppMain() {
   const appState = useUiStore((s) => s.appState);
   const result = useScanStore((s) => s.result);
   const scanError = useScanStore((s) => s.error);
+  const backgroundScanStarted = useRef(false);
+
+  // On mount: if we have cached results, go straight to results and rescan in background
+  useEffect(() => {
+    if (backgroundScanStarted.current) return;
+    const cachedResult = useScanStore.getState().result;
+    if (cachedResult && appState === 'welcome') {
+      backgroundScanStarted.current = true;
+      useUiStore.getState().setAppState('results');
+
+      // Start background rescan. startScan() also kicks off system detection concurrently,
+      // so we don't trigger detectSystem separately here (that caused a duplicate detection).
+      commands.getConfig()
+        .then((raw) => {
+          const general = raw.general as Record<string, unknown> | undefined;
+          const paths = (general?.default_paths as string[]) ?? [];
+          return useScanStore.getState().startScan(paths);
+        })
+        .catch(console.error);
+    }
+  }, [appState]);
 
   // Transition to results when scan completes
   useEffect(() => {

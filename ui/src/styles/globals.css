@@ -1,42 +1,70 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #6366F1;
-  --color-primary-hover: #4F46E5;
-  --color-primary-soft: #6366F120;
-  --color-safe: #10B981;
-  --color-safe-hover: #059669;
-  --color-warning: #F59E0B;
-  --color-warning-hover: #D97706;
-  --color-danger: #EF4444;
-  --color-danger-hover: #DC2626;
+  /* ─── normal is dead · 12-color brand palette ─── */
+  --color-cream: #FCF0DD;
+  --color-sky: #D7FFE9;
+  --color-mustard: #EEBE55;
+  --color-teal: #96AA9F;
+  --color-lav: #9DA7EA;
+  --color-moss: #1C423E;
+  --color-peach: #F4B6C3;
+  --color-brick: #EC5E52;
+  --color-earth: #530E36;
+  --color-lavlt: #DEDDFC;
+  --color-copper: #974320;
+  --color-indigo: #383154;
 
-  --color-bg: #FAFBFC;
-  --color-bg-secondary: #F1F5F9;
-  --color-bg-tertiary: #E2E8F0;
-  --color-surface: rgba(255, 255, 255, 0.85);
+  /* ─── Pastel Bento — semantic tokens (light) ───
+     Lav drives primary actions, brick = danger, mustard = warning, teal/green = safe. */
+  --color-primary: #9DA7EA;          /* lav */
+  --color-primary-hover: #818CE0;
+  --color-primary-soft: rgba(157, 167, 234, 0.16);
+  --color-safe: #34B98A;             /* clear positive green tuned to the palette */
+  --color-safe-hover: #2AA178;
+  --color-warning: #EEBE55;          /* mustard */
+  --color-warning-hover: #D9A93C;
+  --color-warning-surface: rgba(238, 190, 85, 0.14);
+  --color-warning-border: rgba(238, 190, 85, 0.34);
+  --color-warning-text: #8A6A1E;     /* readable on a light mustard tint */
+  --color-warning-strong-text: #3A2A00;
+  --color-danger: #EC5E52;           /* brick */
+  --color-danger-hover: #D94A3E;
+
+  --color-bg: #ECE7F5;               /* soft lavender pastel (gradient applied on body) */
+  --color-bg-secondary: #E3DDF2;
+  --color-bg-tertiary: #D7CFEA;
+  --color-surface: rgba(255, 255, 255, 0.70);
   --color-surface-solid: #FFFFFF;
-  --color-surface-hover: #F1F5F9;
-  --color-border: #E2E8F0;
-  --color-text: #0F172A;
-  --color-text-secondary: #475569;
-  --color-text-muted: #94A3B8;
+  --color-surface-hover: #F3EFFA;
+  --color-border: rgba(56, 49, 84, 0.14);
+  --color-text: #2A2336;             /* near-black plum */
+  --color-text-secondary: #5B5470;
+  --color-text-muted: #8E88A0;
 
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  /* Pastel bento background field (light). Dark flips to pure black below. */
+  --app-bg: linear-gradient(160deg, #EAFFF4 0%, #E9E6FF 100%);
+
+  --font-sans: 'General Sans', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: 'Clash Display', 'General Sans', ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Dark theme overrides */
+/* ─── Dark theme — pure black bento ─── */
 .dark {
-  --color-bg: #09090B;
-  --color-bg-secondary: #111113;
-  --color-bg-tertiary: #18181B;
-  --color-surface: rgba(24, 24, 27, 0.9);
-  --color-surface-solid: #18181B;
-  --color-surface-hover: #27272A;
-  --color-border: #27272A;
-  --color-text: #FAFAFA;
-  --color-text-secondary: #A1A1AA;
-  --color-text-muted: #52525B;
+  --color-bg: #000000;
+  --color-bg-secondary: #0C0B0F;
+  --color-bg-tertiary: #17151E;
+  --color-surface: rgba(255, 255, 255, 0.055);
+  --color-surface-solid: #0E0D12;
+  --color-surface-hover: rgba(255, 255, 255, 0.09);
+  --color-border: rgba(255, 255, 255, 0.11);
+  --color-text: #EFECF6;
+  --color-text-secondary: #B4AEC6;
+  --color-text-muted: #7C768E;
+  --color-primary-soft: rgba(157, 167, 234, 0.18);
+  --color-warning-text: #F2C75A;     /* bright mustard on dark */
+  --color-warning-strong-text: #3A2A00;
+  --app-bg: #000000;
 }
 
 html,
@@ -44,13 +72,78 @@ body {
   margin: 0;
   padding: 0;
   font-family: var(--font-sans);
-  background-color: var(--color-bg);
+  background: var(--app-bg);
+  background-attachment: fixed;
   color: var(--color-text);
   overflow: hidden;
   height: 100%;
   font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Pastel Bento utilities ─── */
+/* Rounded card surface. */
+.bento {
+  border-radius: 22px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+/* Coloured tint cards — solid pastel in light, translucent-on-black in dark so they pop. */
+.tint-peach   { background: var(--color-peach);   color: var(--color-earth);  border: 1px solid transparent; }
+.tint-sky     { background: var(--color-sky);     color: #10261F;             border: 1px solid transparent; }
+.tint-lav     { background: var(--color-lavlt);   color: var(--color-indigo); border: 1px solid transparent; }
+.tint-mustard { background: var(--color-mustard);  color: #3A2A00;             border: 1px solid transparent; }
+.dark .tint-peach   { background: rgba(244, 182, 195, 0.16); color: var(--color-peach);   border-color: rgba(244, 182, 195, 0.30); }
+.dark .tint-sky     { background: rgba(215, 255, 233, 0.13); color: var(--color-sky);     border-color: rgba(215, 255, 233, 0.26); }
+.dark .tint-lav     { background: rgba(157, 167, 234, 0.16); color: var(--color-lav);     border-color: rgba(157, 167, 234, 0.30); }
+.dark .tint-mustard { background: rgba(238, 190, 85, 0.16);  color: var(--color-mustard); border-color: rgba(238, 190, 85, 0.30); }
+/* Display-face numerals for the hero figures. */
+.display { font-family: var(--font-display); font-weight: 700; letter-spacing: -0.01em; }
+
+/* ─── Pastel Bento — additive composition helpers ─── */
+/* Hero anchor card: one per screen, larger radius than standard .bento. */
+.bento-hero {
+  border-radius: 28px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+/* Flat list-row separator — rows inside one .bento read as dividers, never nested cards. */
+.bento-row { border-bottom: 1px solid var(--color-border); }
+.bento-row:last-child { border-bottom: 0; }
+/* Pill button base — pair with a colour variant for fill/text. */
+.pill {
+  border-radius: 999px;
+  font-weight: 500;
+  transition: background-color 160ms cubic-bezier(0.32, 0.72, 0, 1),
+              opacity 160ms cubic-bezier(0.32, 0.72, 0, 1),
+              transform 160ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.pill:active { transform: translateY(1px); }
+/* Modal/overlay glass: heavier blur than card .glass, bento radius + elevation shadow. */
+.glass-modal {
+  border-radius: 22px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.55);
+}
+/* Soft top/bottom scroll fade so a dense list reads as one calm panel. */
+.list-fade {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+}
+/* Subtle clickable-card lift (hover). Calm, no scale-jump. */
+.bento-lift { transition: transform 160ms cubic-bezier(0.32, 0.72, 0, 1), border-color 160ms cubic-bezier(0.32, 0.72, 0, 1); }
+.bento-lift:hover { transform: translateY(-2px); }
+/* Respect Reduce Transparency: swap glass for solid surfaces, kill blur. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass, .glass-modal {
+    background: var(--color-surface-solid);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 #root {
@@ -107,8 +200,8 @@ input[type="checkbox"] {
 
 /* Pulse animation for clean button */
 @keyframes subtle-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(157, 167, 234, 0.45); }
+  50% { box-shadow: 0 0 0 8px rgba(157, 167, 234, 0); }
 }
 
 .pulse-primary {
@@ -121,4 +214,22 @@ input[type="checkbox"] {
   position: fixed;
   inset: 0;
   z-index: 100;
+}
+
+/* Respect users who ask for reduced motion: neutralize looping/decorative animations and make
+   transitions effectively instant. JS-driven motion (confetti, framer infinite loops) is also
+   gated on the prefers-reduced-motion media query in components via useReducedMotion(). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .pulse-primary {
+    animation: none !important;
+  }
 }

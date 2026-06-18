@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { events } from '@/lib/tauri';
 import { useScanStore } from '@/stores/scan-store';
-import { useSystemStore } from '@/stores/system-store';
 
 /**
  * Hook that listens to Tauri scan events and updates the scan store.
@@ -24,8 +23,8 @@ export function useScanProgress() {
 
       const unComplete = await events.onScanComplete((payload) => {
         setResult(payload);
-        // Detect system-level items (cleaners + caches) in background
-        useSystemStore.getState().detectSystem().catch(console.error);
+        // System detection (cleaners + caches) is now kicked off at scan START (see scan-store),
+        // so it runs CONCURRENTLY with the project scan instead of waiting for it to finish.
       });
       if (cancelled) { unComplete(); return; }
       unlisteners.push(unComplete);

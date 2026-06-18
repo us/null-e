@@ -18,7 +18,7 @@ export function UpdateNotification() {
           transition={{ duration: 0.2 }}
           className="shrink-0 overflow-hidden"
         >
-          <div className="flex items-center gap-3 px-5 py-2.5 bg-[var(--color-primary)]/10 border-b border-[var(--color-primary)]/20">
+          <div className="flex items-center gap-3 px-5 py-2.5 tint-lav border-b border-[var(--color-border)]">
             {downloading ? (
               <RefreshCw size={14} className="animate-spin text-[var(--color-primary)]" />
             ) : (
@@ -48,13 +48,14 @@ export function UpdateNotification() {
                 <>
                   <button
                     onClick={downloadAndInstall}
-                    className="text-xs font-medium px-3 py-1 rounded-md bg-[var(--color-primary)] text-white hover:opacity-90 transition-opacity focus-visible:ring-2 focus-visible:ring-white outline-none"
+                    disabled={downloading}
+                    className="pill text-xs font-medium px-3 py-1 bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] transition-colors focus-visible:ring-2 focus-visible:ring-white outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Update & Restart
                   </button>
                   <button
                     onClick={dismiss}
-                    className="p-1 rounded hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
+                    className="p-1 rounded-full hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
                     aria-label="Dismiss update notification"
                   >
                     <X size={14} />

@@ -16,6 +16,9 @@ interface UiState {
   disclaimerAccepted: boolean;
   fdaStatus: FdaStatus;
   fdaDismissed: boolean;
+  /** True when FDA was granted in a previous run but is now denied — typically an unsigned-build
+   * update reset the grant. Drives the "an update reset this permission" wizard copy. */
+  fdaLostAfterUpdate: boolean;
 
   setAppState: (state: AppState) => void;
   toggleTheme: () => void;
@@ -45,6 +48,7 @@ export const useUiStore = create<UiState>((set) => ({
     try { return localStorage.getItem('null-e:fda-dismissed') !== null; }
     catch { return false; }
   })(),
+  fdaLostAfterUpdate: false,
 
   setAppState: (appState) => set({ appState }),
 
@@ -74,14 +78,26 @@ export const useUiStore = create<UiState>((set) => ({
     if (fdaStatus === 'granted') {
       try {
         localStorage.removeItem('null-e:fda-dismissed');
+        // Remember that FDA was granted, so a later denial can be recognized as an update reset.
+        localStorage.setItem('null-e:fda-was-granted', '1');
       } catch {
         // Ignore storage failures and still update in-memory state.
       }
-      set({ fdaStatus, fdaDismissed: false });
+      set({ fdaStatus, fdaDismissed: false, fdaLostAfterUpdate: false });
       return;
     }
 
-    set({ fdaStatus });
+    // If FDA was granted before but is now denied, this is almost certainly an unsigned-build
+    // update resetting the grant — surface the dedicated explanation.
+    let lost = false;
+    if (fdaStatus === 'not_granted') {
+      try {
+        lost = localStorage.getItem('null-e:fda-was-granted') !== null;
+      } catch {
+        lost = false;
+      }
+    }
+    set({ fdaStatus, fdaLostAfterUpdate: lost });
   },
 
   dismissFda: () => {

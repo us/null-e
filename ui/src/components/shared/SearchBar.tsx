@@ -8,7 +8,7 @@ interface SearchBarProps {
 
 export function SearchBar({ value, onChange, placeholder = 'Search...' }: SearchBarProps) {
   return (
-    <div className="relative flex items-center">
+    <div className="relative flex items-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] focus-within:ring-2 focus-within:ring-[var(--color-primary)] transition-colors">
       <Search
         size={16}
         className="absolute left-3 text-[var(--color-text-muted)] pointer-events-none"
@@ -18,12 +18,14 @@ export function SearchBar({ value, onChange, placeholder = 'Search...' }: Search
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full pl-9 pr-8 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent transition-colors"
+        className="w-full pl-9 pr-8 py-2 rounded-xl bg-transparent text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none"
       />
       {value && (
         <button
           onClick={() => onChange('')}
-          className="absolute right-2 p-0.5 rounded hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)]"
+          aria-label="Clear search"
+          title="Clear search"
+          className="absolute right-1.5 p-1.5 rounded hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
         >
           <X size={14} />
         </button>

@@ -52,7 +52,9 @@ export function GroupedList({
               {/* Collapse toggle + icon + label */}
               <button
                 onClick={() => onToggleCollapse(group.label)}
-                className="flex items-center gap-2.5 flex-1 min-w-0"
+                aria-expanded={!isCollapsed}
+                aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${group.label}`}
+                className="flex items-center gap-2.5 flex-1 min-w-0 rounded focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
               >
                 {isCollapsed ? (
                   <ChevronRight size={14} className="shrink-0 text-[var(--color-text-muted)]" />
@@ -61,7 +63,7 @@ export function GroupedList({
                 )}
 
                 <div
-                  className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg"
+                  className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl"
                   style={{ backgroundColor: `${group.color}15` }}
                 >
                   <TechIcon kind={group.kind} size={20} />

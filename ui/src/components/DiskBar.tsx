@@ -11,6 +11,10 @@ interface DiskBarProps {
   diskTotal?: number;
 }
 
+/**
+ * Pastel-bento summary bar: a hero "selected to clean" card alongside coloured tint stat cards.
+ * Replaces the old donut ring with the bento card language used across the app.
+ */
 export function DiskBar({
   totalCleanable,
   selectedSize,
@@ -23,144 +27,68 @@ export function DiskBar({
 }: DiskBarProps) {
   const totalItems = artifactCount + systemItemCount;
   const hasDiskInfo = diskUsed != null && diskTotal != null && diskTotal > 0;
-
-  const ringSize = 84;
-  const strokeWidth = 6;
-  const radius = (ringSize - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-
-  const usedPct = hasDiskInfo ? Math.min(diskUsed! / diskTotal!, 1) : 0;
-  const cleanablePct = hasDiskInfo
-    ? Math.min(totalCleanable / diskTotal!, usedPct)
-    : 0;
-  const selectedPct = hasDiskInfo
-    ? Math.min(selectedSize / diskTotal!, cleanablePct)
-    : totalCleanable > 0
-      ? selectedSize / totalCleanable
-      : 0;
-
   const diskFree = hasDiskInfo ? diskTotal! - diskUsed! : 0;
   const afterCleanFree = diskFree + selectedSize;
+  const selectedPct = totalCleanable > 0 ? Math.min(selectedSize / totalCleanable, 1) : 0;
 
   return (
-    <div className="shrink-0 px-5 py-4 border-b border-[var(--color-border)]">
-      <div className="flex items-center justify-between">
-        {/* Left: ring + text */}
-        <div className="flex items-center gap-4">
-          {/* Donut ring */}
-          <div className="relative shrink-0" style={{ width: ringSize, height: ringSize }}>
-            {hasDiskInfo ? (
-              <svg width={ringSize} height={ringSize} className="-rotate-90">
-                <circle cx={ringSize / 2} cy={ringSize / 2} r={radius} fill="none"
-                  stroke="var(--color-bg-tertiary)" strokeWidth={strokeWidth} />
-                <circle cx={ringSize / 2} cy={ringSize / 2} r={radius} fill="none"
-                  stroke="var(--color-text-muted)" strokeWidth={strokeWidth}
-                  strokeDasharray={circumference}
-                  strokeDashoffset={circumference * (1 - usedPct)}
-                  strokeLinecap="round" className="opacity-20" />
-                {cleanablePct > 0 && (
-                  <circle cx={ringSize / 2} cy={ringSize / 2} r={radius} fill="none"
-                    stroke="#f59e0b" strokeWidth={strokeWidth}
-                    strokeDasharray={circumference}
-                    strokeDashoffset={circumference * (1 - cleanablePct)}
-                    strokeLinecap="round" className="opacity-40 transition-all duration-500" />
-                )}
-                <circle cx={ringSize / 2} cy={ringSize / 2} r={radius} fill="none"
-                  stroke="var(--color-primary)" strokeWidth={strokeWidth}
-                  strokeDasharray={circumference}
-                  strokeDashoffset={circumference * (1 - selectedPct)}
-                  strokeLinecap="round" className="transition-all duration-500 ease-out" />
-              </svg>
-            ) : (
-              /* Skeleton loading ring */
-              <svg width={ringSize} height={ringSize} className="-rotate-90">
-                <circle cx={ringSize / 2} cy={ringSize / 2} r={radius} fill="none"
-                  stroke="var(--color-bg-tertiary)" strokeWidth={strokeWidth} />
-                <circle cx={ringSize / 2} cy={ringSize / 2} r={radius} fill="none"
-                  stroke="var(--color-bg-tertiary)" strokeWidth={strokeWidth}
-                  strokeDasharray={circumference}
-                  strokeDashoffset={circumference * 0.7}
-                  strokeLinecap="round" className="animate-pulse opacity-30" />
-              </svg>
-            )}
-            {/* Center: logo inside ring */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <img
-                src="/logo.png"
-                alt="null-e"
-                width={ringSize - strokeWidth * 2 - 8}
-                height={ringSize - strokeWidth * 2 - 8}
-                className="rounded-xl"
-              />
-            </div>
+    <div className="shrink-0 px-4 py-3 border-b border-[var(--color-border)]">
+      <div className="grid grid-cols-[1.7fr_1fr_1fr] gap-2.5 sm:grid-cols-[1.7fr_1fr_1fr_1fr]">
+        {/* Hero — selected to clean */}
+        <div className="bento p-3.5 flex flex-col justify-center">
+          <div className="text-[11px] uppercase tracking-wider text-[var(--color-text-muted)]">
+            Selected to clean
           </div>
-
-          <div>
-            <div className="text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-1">
-              Selected to clean
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-bold tabular-nums text-[var(--color-primary)]">
-                {formatSize(selectedSize)}
-              </span>
-              <span className="text-sm text-[var(--color-text-muted)]">
-                of {formatSize(totalCleanable)}
-              </span>
-            </div>
-            {hasDiskInfo && (
-              <div className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
-                {formatSize(diskTotal!)} disk · {formatSize(diskFree)} free
-                {selectedSize > 0 && (
-                  <> → <span className="text-[var(--color-safe)] font-medium">{formatSize(afterCleanFree)} free</span></>
-                )}
-              </div>
-            )}
-            {/* Ring legend */}
-            {hasDiskInfo && (
-              <div className="flex items-center gap-3 mt-1.5">
-                <LegendDot color="var(--color-text-muted)" opacity={0.2} label="Used" />
-                <LegendDot color="#f59e0b" opacity={0.4} label="Cleanable" />
-                <LegendDot color="var(--color-primary)" opacity={1} label="Selected" />
-              </div>
-            )}
+          <div className="flex items-baseline gap-2 mt-0.5">
+            <span className="display text-3xl text-[var(--color-primary)] tabular-nums leading-none">
+              {formatSize(selectedSize)}
+            </span>
+            <span className="text-sm text-[var(--color-text-muted)]">
+              of {formatSize(totalCleanable)}
+            </span>
           </div>
-        </div>
-
-        {/* Right: stats */}
-        <div className="flex gap-4 text-right">
-          <Stat label="Items" value={`${selectedCount} / ${totalItems}`} />
-          <Stat label="Projects" value={String(projectCount)} />
-          {systemItemCount > 0 && (
-            <Stat label="System" value={String(systemItemCount)} />
-          )}
+          {/* progress */}
+          <div className="mt-2 h-1.5 rounded-full bg-[var(--color-bg-tertiary)] overflow-hidden">
+            <div
+              className="h-full rounded-full bg-[var(--color-primary)] transition-all duration-500"
+              style={{ width: `${selectedPct * 100}%` }}
+            />
+          </div>
           {hasDiskInfo && (
-            <Stat label="Disk" value={`${formatSize(diskUsed!)} / ${formatSize(diskTotal!)}`} />
+            <div
+              className="text-[11px] text-[var(--color-text-muted)] mt-1.5"
+              title="In Trash mode the space is reclaimed once you empty the Trash."
+            >
+              {formatSize(diskFree)} free
+              {selectedSize > 0 && (
+                <> → up to <span className="text-[var(--color-safe)] font-medium">{formatSize(afterCleanFree)}</span> after cleanup</>
+              )}
+            </div>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-xs text-[var(--color-text-muted)]">{label}</div>
-      <div className="text-sm font-semibold tabular-nums text-[var(--color-text-secondary)]">
-        {value}
-      </div>
-    </div>
-  );
-}
+        {/* Disk free */}
+        <div className="tint-peach rounded-[18px] p-3.5 flex flex-col justify-center">
+          <div className="text-[11px] opacity-70 lowercase">disk free</div>
+          <div className="display text-xl tabular-nums mt-0.5">
+            {hasDiskInfo ? formatSize(diskFree) : '—'}
+          </div>
+        </div>
 
-function LegendDot({ color, opacity, label }: { color: string; opacity: number; label: string }) {
-  return (
-    <div className="flex items-center gap-1">
-      <span
-        className="w-2 h-2 rounded-full"
-        style={{ backgroundColor: color, opacity }}
-      />
-      <span className="text-[9px] text-[var(--color-text-muted)]">{label}</span>
+        {/* Projects */}
+        <div className="tint-sky rounded-[18px] p-3.5 flex flex-col justify-center">
+          <div className="text-[11px] opacity-70 lowercase">projects</div>
+          <div className="display text-xl tabular-nums mt-0.5">{projectCount}</div>
+        </div>
+
+        {/* Items (hidden on smallest width via grid template) */}
+        <div className="tint-lav rounded-[18px] p-3.5 flex-col justify-center hidden sm:flex">
+          <div className="text-[11px] opacity-70 lowercase">items</div>
+          <div className="display text-xl tabular-nums mt-0.5">
+            {selectedCount}<span className="text-sm opacity-60"> / {totalItems}</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

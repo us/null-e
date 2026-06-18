@@ -41,13 +41,13 @@ export function ArtifactListItem({
         type="checkbox"
         checked={selected}
         onChange={() => onToggle(artifact.path)}
-        className="shrink-0 w-4 h-4 rounded cursor-pointer"
+        className="shrink-0 w-4 h-4 rounded cursor-pointer focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
         aria-label={`Select ${projectName} ${artifact.name}`}
       />
 
       {/* Tech icon in colored box */}
       <div
-        className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg"
+        className="shrink-0 w-9 h-9 flex items-center justify-center rounded-xl"
         style={{ backgroundColor: `${techColor}15` }}
       >
         <TechIcon kind={kind} size={22} />
@@ -61,7 +61,7 @@ export function ArtifactListItem({
             {projectName}
           </span>
           {/* Artifact badge */}
-          <span className="shrink-0 text-[11px] flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
+          <span className="shrink-0 text-[11px] flex items-center gap-1 px-2 py-0.5 rounded-full bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)]">
             <span>{artifactEmoji}</span>
             {artifact.name}
           </span>

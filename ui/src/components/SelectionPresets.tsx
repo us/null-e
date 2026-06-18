@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, Zap } from 'lucide-react';
 import type { FlatArtifact } from './ResultsView';
 import type { SystemEntry } from './SystemItemRow';
+import { formatSize } from '@/lib/format';
 
 interface SelectionPresetsProps {
   flatArtifacts: FlatArtifact[];
@@ -80,11 +81,19 @@ export function SelectionPresets({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Memoize preset match counts
-  const presetCounts = useMemo(
-    () => presets.map((p) => p.filter(flatArtifacts, systemEntries).size),
-    [flatArtifacts, systemEntries]
-  );
+  // Memoize preset match counts + aggregate sizes so each row is decision-ready (count alone can't
+  // tell "> 1 GB (4)" apart from 5 GB vs 40 GB).
+  const presetStats = useMemo(() => {
+    const sizeByPath = new Map<string, number>();
+    for (const a of flatArtifacts) sizeByPath.set(a.artifact.path, a.artifact.size);
+    for (const s of systemEntries) sizeByPath.set(s.path, s.size);
+    return presets.map((p) => {
+      const paths = p.filter(flatArtifacts, systemEntries);
+      let size = 0;
+      for (const path of paths) size += sizeByPath.get(path) ?? 0;
+      return { count: paths.size, size };
+    });
+  }, [flatArtifacts, systemEntries]);
 
   // Close on outside click
   useEffect(() => {
@@ -112,7 +121,7 @@ export function SelectionPresets({
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="shrink-0 flex items-center gap-1 text-xs px-2 py-1.5 rounded-md border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)] hover:border-[var(--color-text-muted)] transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
+        className="pill shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
         aria-label="Quick select presets"
         aria-expanded={open}
       >
@@ -122,9 +131,9 @@ export function SelectionPresets({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-50 w-56 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] shadow-xl overflow-hidden">
+        <div className="absolute bottom-full left-0 mb-1 z-50 w-56 overflow-hidden p-1 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-solid)] shadow-xl">
           {presets.map((preset, idx) => {
-            const matchCount = presetCounts[idx];
+            const { count: matchCount, size: matchSize } = presetStats[idx];
             return (
               <button
                 key={preset.label}
@@ -133,19 +142,24 @@ export function SelectionPresets({
                   setOpen(false);
                 }}
                 disabled={matchCount === 0}
-                className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-[var(--color-surface-hover)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:bg-[var(--color-surface-hover)] outline-none"
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-left hover:bg-[var(--color-surface-hover)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
               >
-                <div>
+                <div className="min-w-0">
                   <div className="text-xs font-medium text-[var(--color-text)]">
                     {preset.label}
                   </div>
-                  <div className="text-[11px] text-[var(--color-text-muted)]">
+                  <div className="text-[11px] text-[var(--color-text-secondary)] truncate">
                     {preset.description}
                   </div>
                 </div>
-                <span className="text-[11px] tabular-nums text-[var(--color-text-muted)]">
-                  {matchCount}
-                </span>
+                <div className="shrink-0 text-right">
+                  <div className="text-[11px] tabular-nums font-medium text-[var(--color-text-secondary)]">
+                    {matchCount > 0 ? formatSize(matchSize) : '—'}
+                  </div>
+                  <div className="text-[10px] tabular-nums text-[var(--color-text-muted)]">
+                    {matchCount} item{matchCount === 1 ? '' : 's'}
+                  </div>
+                </div>
               </button>
             );
           })}

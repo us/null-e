@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Loader2, CheckCircle, AlertCircle, Download, RefreshCw } from 'lucide-react';
 import { commands } from '@/lib/tauri';
 import { useUiStore, type Theme } from '@/stores/ui-store';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 
@@ -116,6 +117,18 @@ export function SettingsDrawer() {
     });
   };
 
+  const trapRef = useFocusTrap<HTMLDivElement>(settingsOpen);
+
+  // Escape closes the drawer, matching ConfirmDialog's behavior.
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSettingsOpen(false);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [settingsOpen, setSettingsOpen]);
+
   return (
     <AnimatePresence>
       {settingsOpen && (
@@ -130,11 +143,16 @@ export function SettingsDrawer() {
           />
           {/* Drawer */}
           <motion.div
+            ref={trapRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Settings"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed right-0 top-0 bottom-0 w-[380px] max-w-[90vw] z-50 bg-[var(--color-surface-solid)] border-l border-[var(--color-border)] shadow-2xl overflow-y-auto"
+            className="fixed right-0 top-0 bottom-0 w-[380px] max-w-[90vw] z-50 bg-[var(--color-surface-solid)] border-l border-[var(--color-border)] shadow-2xl overflow-y-auto outline-none"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--color-border)]">
@@ -145,7 +163,7 @@ export function SettingsDrawer() {
                 <button
                   onClick={saveSettings}
                   disabled={saving || loading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] disabled:opacity-50 transition-colors"
+                  className="pill flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:ring-2 focus-visible:ring-white outline-none"
                 >
                   {saving ? (
                     <Loader2 size={12} className="animate-spin" />
@@ -158,7 +176,9 @@ export function SettingsDrawer() {
                 </button>
                 <button
                   onClick={() => setSettingsOpen(false)}
-                  className="p-1.5 rounded-lg hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)]"
+                  aria-label="Close settings"
+                  title="Close settings"
+                  className="p-2 rounded-lg hover:bg-[var(--color-surface-hover)] text-[var(--color-text-muted)] focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
                 >
                   <X size={16} />
                 </button>
@@ -173,9 +193,9 @@ export function SettingsDrawer() {
                 />
               </div>
             ) : (
-              <div className="p-5 space-y-6">
+              <div className="p-5 flex flex-col gap-4">
                 {error && (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 text-[var(--color-danger)] text-xs">
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-[var(--color-danger)]/10 text-[var(--color-danger)] text-xs">
                     <AlertCircle size={14} />
                     <span>{error}</span>
                   </div>
@@ -191,28 +211,29 @@ export function SettingsDrawer() {
                         onChange={(e) => setNewPath(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && addPath()}
                         placeholder="/Users/you/code"
-                        className="flex-1 px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-xs text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                        className="flex-1 px-3 py-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-solid)] text-xs text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                       />
                       <button
                         onClick={addPath}
-                        className="px-3 py-1.5 rounded-lg bg-[var(--color-bg-tertiary)] hover:bg-[var(--color-surface-hover)] text-xs text-[var(--color-text-secondary)] transition-colors"
+                        className="pill px-3 py-1.5 text-xs text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
                       >
                         Add
                       </button>
                     </div>
                     {config.scan_paths.length > 0 ? (
-                      <div className="space-y-1">
+                      <div className="bento overflow-hidden">
                         {config.scan_paths.map((path, i) => (
                           <div
-                            key={i}
-                            className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-[var(--color-bg)]"
+                            key={path}
+                            className="bento-row flex items-center justify-between px-4 py-2.5"
                           >
-                            <span className="text-[11px] text-[var(--color-text-secondary)] truncate">
+                            <span className="text-[11px] text-[var(--color-text-secondary)] truncate" title={path}>
                               {path}
                             </span>
                             <button
                               onClick={() => removePath(i)}
-                              className="text-[11px] text-[var(--color-danger)] hover:underline shrink-0 ml-2"
+                              aria-label={`Remove scan path ${path}`}
+                              className="pill px-2 py-1 text-xs text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10 transition-colors shrink-0 ml-2 focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
                             >
                               Remove
                             </button>
@@ -275,6 +296,7 @@ export function SettingsDrawer() {
                       onChange={(v) =>
                         setConfig({ ...config, use_trash: v })
                       }
+                      label="Use Trash instead of permanent delete"
                     />
                   </div>
                   <Field label="Protection Level">
@@ -286,7 +308,7 @@ export function SettingsDrawer() {
                           protection_level: e.target.value,
                         })
                       }
-                      className="w-full px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] text-xs text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                      className="w-full px-3 py-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-solid)] text-xs text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
                     >
                       <option value="relaxed">Relaxed</option>
                       <option value="normal">Normal</option>
@@ -302,10 +324,10 @@ export function SettingsDrawer() {
                       <button
                         key={t}
                         onClick={() => setTheme(t)}
-                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize ${
+                        className={`pill flex-1 px-3 py-1.5 text-xs font-medium transition-colors capitalize focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none ${
                           theme === t
                             ? 'bg-[var(--color-primary)] text-white'
-                            : 'bg-[var(--color-bg-tertiary)] text-[var(--color-text-secondary)] hover:text-[var(--color-text)]'
+                            : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]'
                         }`}
                       >
                         {t}
@@ -330,7 +352,7 @@ export function SettingsDrawer() {
                         Disclaimer {disclaimerOpen ? '\u25BE' : '\u25B8'}
                       </button>
                       {disclaimerOpen && (
-                        <div className="mt-2 rounded-lg bg-[var(--color-bg)] p-3 text-[11px] text-[var(--color-text-muted)]">
+                        <div className="mt-2 rounded-xl bg-[var(--color-bg)] p-3 text-[11px] text-[var(--color-text-muted)]">
                           This software is provided &quot;as-is&quot; without warranty of any kind, express or implied. The authors are not responsible for any data loss, corruption, or damage resulting from the use of this software. Use at your own risk. Always maintain backups of important data.
                         </div>
                       )}
@@ -360,7 +382,7 @@ export function SettingsDrawer() {
                       {updateStatus === 'available' && (
                         <button
                           onClick={installUpdate}
-                          className="flex items-center gap-1.5 text-[11px] font-medium text-white bg-[var(--color-primary)] px-2.5 py-1 rounded-md hover:opacity-90 transition-opacity"
+                          className="pill flex items-center gap-1.5 text-[11px] font-medium text-white bg-[var(--color-primary)] px-2.5 py-1 hover:bg-[var(--color-primary-hover)] transition-colors focus-visible:ring-2 focus-visible:ring-white outline-none"
                         >
                           <Download size={11} />
                           Update to v{updateVersion}
@@ -401,11 +423,11 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-3">
+    <div className="bento p-4 space-y-3">
       <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
         {title}
       </h3>
-      <div className="space-y-3">{children}</div>
+      <div className="flex flex-col gap-2">{children}</div>
     </div>
   );
 }
@@ -430,19 +452,24 @@ function Field({
 function Toggle({
   checked,
   onChange,
+  label,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
+  label?: string;
 }) {
   return (
     <button
       onClick={() => onChange(!checked)}
-      className={`relative w-9 h-5 rounded-full transition-colors ${
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      className={`relative w-9 h-5 rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none ${
         checked ? 'bg-[var(--color-safe)]' : 'bg-[var(--color-text-muted)]'
       }`}
     >
       <span
-        className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+        className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${
           checked ? 'left-[18px]' : 'left-0.5'
         }`}
       />

@@ -51,7 +51,9 @@ export function ProjectCard({
         />
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+          aria-expanded={expanded}
+          aria-label={`${expanded ? 'Collapse' : 'Expand'} ${project.name}`}
+          className="text-[var(--color-text-muted)] hover:text-[var(--color-text)] rounded focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
         >
           {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
         </button>

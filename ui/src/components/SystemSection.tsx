@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatSize } from '@/lib/format';
-import { SystemItemRow, type SystemEntry } from './SystemItemRow';
+import { SystemItemRow, getCategoryColor, type SystemEntry } from './SystemItemRow';
 
 interface SystemCategory {
   category: string;
@@ -76,6 +76,7 @@ export function SystemSection({
         const isCollapsed = collapsedCategories.has(cat.category);
         const selectedCount = cat.items.filter((i) => selectedPaths.has(i.path)).length;
         const allSelected = selectedCount === cat.items.length;
+        const categoryColor = getCategoryColor(cat.category);
 
         return (
           <div key={cat.category}>
@@ -94,7 +95,9 @@ export function SystemSection({
 
               <button
                 onClick={() => toggleCollapse(cat.category)}
-                className="flex items-center gap-2.5 flex-1 min-w-0"
+                aria-expanded={!isCollapsed}
+                aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${cat.category}`}
+                className="flex items-center gap-2.5 flex-1 min-w-0 rounded focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none"
               >
                 {isCollapsed ? (
                   <ChevronRight size={14} className="shrink-0 text-[var(--color-text-muted)]" />
@@ -102,7 +105,10 @@ export function SystemSection({
                   <ChevronDown size={14} className="shrink-0 text-[var(--color-text-muted)]" />
                 )}
 
-                <div className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--color-bg-tertiary)] text-base">
+                <div
+                  className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl text-base"
+                  style={{ backgroundColor: `color-mix(in srgb, ${categoryColor} 15%, transparent)` }}
+                >
                   {cat.icon}
                 </div>
 
@@ -115,7 +121,10 @@ export function SystemSection({
                 </span>
               </button>
 
-              <span className="tabular-nums font-bold text-sm shrink-0 text-[var(--color-text-secondary)]">
+              <span
+                className="tabular-nums font-bold text-sm shrink-0"
+                style={{ color: categoryColor }}
+              >
                 {formatSize(cat.totalSize)}
               </span>
             </div>
@@ -137,6 +146,7 @@ export function SystemSection({
                       selected={selectedPaths.has(entry.path)}
                       onToggle={onToggle}
                       maxSize={maxSize}
+                      categoryColor={categoryColor}
                     />
                   ))}
                 </motion.div>

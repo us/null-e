@@ -75,7 +75,7 @@ export function ViewToolbar({
           <select
             value={flatSortBy}
             onChange={(e) => setFlatSortBy(e.target.value as FlatSortBy)}
-            className="text-xs bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-md px-2 py-1 cursor-pointer outline-none focus:border-[var(--color-primary)]"
+            className="text-xs bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-xl px-2 py-1 cursor-pointer outline-none focus:border-[var(--color-primary)]"
             aria-label="Sort by"
           >
             <option value="size">Size</option>
@@ -92,7 +92,7 @@ export function ViewToolbar({
         </span>
 
         {/* Segmented control */}
-        <div className="flex items-center bg-[var(--color-bg-tertiary)] rounded-lg p-0.5">
+        <div className="flex items-center bg-[var(--color-bg-tertiary)] rounded-xl p-0.5">
           <SegmentButton
             active={viewMode === 'grouped'}
             onClick={() => setViewMode('grouped')}
@@ -129,7 +129,7 @@ function SegmentButton({
       onClick={onClick}
       title={title}
       aria-label={title}
-      className={`flex items-center justify-center w-8 h-8 rounded-md transition-all focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none ${
+      className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] outline-none ${
         active
           ? 'bg-[var(--color-bg)] text-[var(--color-text)] shadow-sm'
           : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
