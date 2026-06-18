@@ -1,5 +1,7 @@
 [package]
-name = "null-e-cli"
+# Published to crates.io as `null-e` (matches the `null-e` binary, the README's
+# `cargo install null-e`, and `cargo binstall null-e`). Dir stays crates/null-e-cli.
+name = "null-e"
 description = "CLI/TUI for null-e disk cleanup tool"
 version.workspace = true
 edition.workspace = true

@@ -72,8 +72,9 @@ predicates = "3.0"
 tokio = { version = "1", features = ["full"] }
 pretty_assertions = "1.4"
 
-# Internal crates
-null-e-core = { path = "crates/null-e-core" }
+# Internal crates. version is required so dependents are publishable to crates.io.
+# ponytail: keep in lockstep with [workspace.package] version above.
+null-e-core = { path = "crates/null-e-core", version = "0.4.2" }
 
 [profile.release]
 lto = true

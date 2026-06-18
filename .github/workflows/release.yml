@@ -263,9 +263,14 @@ jobs:
             exit 1
           fi
           echo "Publishing v$TAG"
-      - name: Publish
-        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        continue-on-error: true
+      # Publish core first (the CLI depends on it); cargo waits for the index to settle.
+      # No continue-on-error: a failed publish should be visible, not silently swallowed.
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          cargo publish -p null-e-core
+          cargo publish -p null-e
 
   update-homebrew:
     name: Update Homebrew Formula

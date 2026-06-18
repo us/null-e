@@ -3616,7 +3616,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "null-e-cli"
+name = "null-e"
 version = "0.4.2"
 dependencies = [
  "chrono",
