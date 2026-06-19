@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.3](https://github.com/us/null-e/compare/v0.4.2...v0.4.3) (2026-06-18)
+
+
+### Features
+
+* **cli:** add --no-emoji flag and list files in dry-run preview ([c9f2747](https://github.com/us/null-e/commit/c9f2747fb0d7135864a6de0a63663f446da0dc79))
+* one-line curl | sh installer ([fb31d43](https://github.com/us/null-e/commit/fb31d43cbd41b4cd401c8d9a1a5cf6d15f7db5cc))
+
+
+### Bug Fixes
+
+* **release:** publish CLI to crates.io as null-e ([dd3cb14](https://github.com/us/null-e/commit/dd3cb144b06478473a5d20aff69a8636c902ea42))
+
 ## [0.4.2](https://github.com/us/null-e/compare/v0.4.1...v0.4.2) (2026-06-18)
 
 
