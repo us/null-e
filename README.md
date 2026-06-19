@@ -83,12 +83,17 @@ null-e sweep
 
 ## What's New
 
-### v0.4.2
+### v0.4.3
 
 ### Features
 
-* **core:** faster, safer scanning and trash reclamation ([1c273c7](https://github.com/us/null-e/commit/1c273c7a07ea51ae84e1623e8e7255a2c67027cc))
-* **ui:** Pastel Bento redesign and sidebar results layout ([8493346](https://github.com/us/null-e/commit/8493346f7d888ceac34f7264ecc13bc9b39132b6))
+* **cli:** add --no-emoji flag and list files in dry-run preview ([c9f2747](https://github.com/us/null-e/commit/c9f2747fb0d7135864a6de0a63663f446da0dc79))
+* one-line curl | sh installer ([fb31d43](https://github.com/us/null-e/commit/fb31d43cbd41b4cd401c8d9a1a5cf6d15f7db5cc))
+
+
+### Bug Fixes
+
+* **release:** publish CLI to crates.io as null-e ([dd3cb14](https://github.com/us/null-e/commit/dd3cb144b06478473a5d20aff69a8636c902ea42))
 
 See [CHANGELOG.md](CHANGELOG.md) for the full release history.
 
