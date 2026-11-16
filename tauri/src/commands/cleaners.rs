@@ -160,11 +160,21 @@ const ALLOWED_ACTION_BINARIES: &[&str] = &[
     "dscacheutil",
 ];
 
+/// Multi-purpose tools allowed only for one exact subcommand (e.g. never `rustup self uninstall`).
+const ALLOWED_ACTION_PREFIXES: &[&[&str]] = &[
+    &["rustup", "toolchain", "remove"],
+    &["swift", "package", "purge-cache"],
+];
+
 fn command_is_allowed(cmd: &str) -> bool {
-    cmd.split_whitespace()
-        .next()
-        .map(|bin| ALLOWED_ACTION_BINARIES.contains(&bin))
-        .unwrap_or(false)
+    let parts: Vec<&str> = cmd.split_whitespace().collect();
+    let Some(bin) = parts.first() else {
+        return false;
+    };
+    ALLOWED_ACTION_BINARIES.contains(bin)
+        || ALLOWED_ACTION_PREFIXES
+            .iter()
+            .any(|prefix| parts.starts_with(prefix))
 }
 
 /// Result of running a typed system action.
@@ -190,10 +200,29 @@ pub async fn run_system_action(
 ) -> Result<SystemActionResultDto, String> {
     tokio::task::spawn_blocking(move || {
         let (items, _skipped) = collect_cleanable_items();
-        let item = items
+        let Some(item) = items
             .into_iter()
             .find(|i| i.path.to_string_lossy() == path && i.name == name)
-            .ok_or_else(|| format!("System item not found: {} ({})", name, path))?;
+        else {
+            // An earlier action in the same batch (a parent cache, an official command) may have
+            // removed it already: that is the goal, not a failure. Only a real NotFound under the
+            // home dir counts; placeholder paths (Docker's /var/lib/docker) and unreadable ones
+            // keep the error.
+            let gone = matches!(
+                std::fs::symlink_metadata(&path),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound
+            );
+            let under_home =
+                dirs::home_dir().is_some_and(|h| std::path::Path::new(&path).starts_with(h));
+            if gone && under_home {
+                return Ok(SystemActionResultDto {
+                    success: true,
+                    bytes_freed: 0,
+                    message: "Already removed".to_string(),
+                });
+            }
+            return Err(format!("System item not found: {} ({})", name, path));
+        };
 
         let target = item.path.clone();
 
@@ -244,7 +273,8 @@ fn run_allowed_command(cmd: &str) -> Result<(), String> {
     if parts.is_empty() {
         return Err("Empty command".to_string());
     }
-    let output = Command::new(parts[0])
+    let output = Command::new(null_e_core::fsutil::resolve_tool(parts[0]))
+        .env("PATH", null_e_core::fsutil::tool_search_path())
         .args(&parts[1..])
         .output()
         .map_err(|e| e.to_string())?;

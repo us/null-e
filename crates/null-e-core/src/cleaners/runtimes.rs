@@ -937,7 +937,7 @@ impl RuntimesCleaner {
 
     /// Detect rustup active toolchain
     fn detect_rustup_active(&self) -> Option<String> {
-        Command::new("rustup")
+        Command::new(crate::fsutil::resolve_tool("rustup"))
             .args(["default"])
             .output()
             .ok()
