@@ -76,6 +76,12 @@ impl ParallelScanner {
                 return false;
             }
 
+            // Skip the Go module cache (`$GOPATH/pkg/mod`): its modules carry go.mod files and
+            // would be reported as projects. The caches module cleans it as a whole.
+            if e.depth() > 0 && is_go_module_cache(e.path()) {
+                return false;
+            }
+
             // Skip hidden directories if configured
             if skip_hidden && e.depth() > 0 && name.starts_with('.') {
                 // But allow some important hidden dirs
@@ -260,10 +266,53 @@ impl Scanner for ParallelScanner {
     }
 }
 
+/// Whether `path` is a Go module cache root: `.../pkg/mod` holding Go's `cache/download` store.
+/// The marker keeps a project's own `pkg/mod` package dir scannable.
+fn is_go_module_cache(path: &Path) -> bool {
+    path.file_name().is_some_and(|n| n == "mod")
+        && path
+            .parent()
+            .and_then(|p| p.file_name())
+            .is_some_and(|n| n == "pkg")
+        && path.join("cache/download").is_dir()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    fn setup_go_module(root: &Path) {
+        let module = root.join("pkg/mod/github.com/x/y@v1.0.0");
+        std::fs::create_dir_all(module.join("bin")).unwrap();
+        std::fs::write(module.join("go.mod"), "module github.com/x/y\n").unwrap();
+        std::fs::write(module.join("bin/tool"), "binary").unwrap();
+    }
+
+    fn scan_project_count(root: &Path) -> usize {
+        let registry = Arc::new(PluginRegistry::with_builtins());
+        let scanner = ParallelScanner::new(registry);
+        scanner.scan(&ScanConfig::new(root)).unwrap().projects.len()
+    }
+
+    #[test]
+    fn test_scan_skips_go_module_cache() {
+        let temp = TempDir::new().unwrap();
+        let gopath = temp.path().join("go");
+        setup_go_module(&gopath);
+        std::fs::create_dir_all(gopath.join("pkg/mod/cache/download")).unwrap();
+
+        assert_eq!(scan_project_count(temp.path()), 0);
+    }
+
+    #[test]
+    fn test_scan_keeps_project_pkg_mod_dir() {
+        // A repo's own pkg/mod package dir (no Go cache marker) is still scanned.
+        let temp = TempDir::new().unwrap();
+        setup_go_module(&temp.path().join("repo"));
+
+        assert_eq!(scan_project_count(temp.path()), 1);
+    }
 
     fn setup_node_project(path: &Path) {
         std::fs::write(path.join("package.json"), r#"{"name": "test"}"#).unwrap();

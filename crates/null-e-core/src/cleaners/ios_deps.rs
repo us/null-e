@@ -191,7 +191,9 @@ impl IosDependencyCleaner {
                                         last_modified: get_mtime(&entry.path()),
                                         description: Cow::Borrowed("Swift Package Manager downloaded packages. Will be re-downloaded."),
                                         safe_to_delete: SafetyLevel::SafeWithCost,
-                                        clean_command: Some("swift package purge-cache".to_string()),
+                                        // Plain delete of this project's folder: `swift package
+                                        // purge-cache` only cleans the global SwiftPM cache.
+                                        clean_command: None,
                                     });
                                 }
                             }

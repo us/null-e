@@ -10,7 +10,7 @@
 //!   module also exposes.
 
 use std::fs::Metadata;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// On-disk allocated bytes for a single file's metadata (`st_blocks * 512` on Unix).
 ///
@@ -364,7 +364,97 @@ pub fn try_clear_user_immutable(_path: &Path) -> bool {
     false
 }
 
-/// Remove a single file, clearing a user immutable flag and retrying once on `EPERM`.
+/// Directories to search for developer tools: `PATH`, then the usual install locations.
+///
+/// A GUI app launched from Finder inherits a minimal `PATH` (`/usr/bin:/bin:/usr/sbin:/sbin`), so
+/// tools in `~/.cargo/bin`, Homebrew or `~/.bun/bin` are not found by name.
+pub fn tool_search_dirs() -> Vec<PathBuf> {
+    let home = dirs::home_dir();
+    let mut dirs: Vec<PathBuf> = std::env::var_os("PATH")
+        .map(|p| std::env::split_paths(&p).collect())
+        .unwrap_or_default();
+    let extra = [
+        std::env::var_os("CARGO_HOME").map(|c| PathBuf::from(c).join("bin")),
+        home.as_ref().map(|h| h.join(".cargo/bin")),
+        Some(PathBuf::from("/opt/homebrew/bin")),
+        Some(PathBuf::from("/usr/local/bin")),
+        home.as_ref().map(|h| h.join(".bun/bin")),
+        home.as_ref().map(|h| h.join("go/bin")),
+        Some(PathBuf::from("/usr/local/go/bin")),
+    ];
+    for dir in extra.into_iter().flatten() {
+        if !dirs.contains(&dir) {
+            dirs.push(dir);
+        }
+    }
+    dirs
+}
+
+/// `PATH` value for a child process: [`tool_search_dirs`] joined, so `#!/usr/bin/env node`
+/// scripts such as npm also find their interpreter.
+pub fn tool_search_path() -> std::ffi::OsString {
+    std::env::join_paths(tool_search_dirs()).unwrap_or_default()
+}
+
+/// Resolve a developer tool binary by name; falls back to the bare name so errors stay readable.
+pub fn resolve_tool(name: &str) -> PathBuf {
+    find_tool_in(&tool_search_dirs(), name).unwrap_or_else(|| PathBuf::from(name))
+}
+
+/// First executable file called `name` in `dirs`.
+fn find_tool_in(dirs: &[PathBuf], name: &str) -> Option<PathBuf> {
+    dirs.iter()
+        .map(|d| d.join(name))
+        .find(|p| is_executable_file(p))
+}
+
+#[cfg(unix)]
+fn is_executable_file(path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+}
+
+#[cfg(not(unix))]
+fn is_executable_file(path: &Path) -> bool {
+    path.is_file()
+}
+
+/// Retry `op` with the parent directory of `path` given its owner write bit, then put the old mode
+/// back.
+///
+/// Unlinking needs write permission on the parent, not on the entry. Tools such as the Go module
+/// cache leave their trees read-only (0555), so every delete inside them fails with `EACCES`.
+/// Returns `None` (and changes nothing) unless we own the parent and it lacks the bit.
+#[cfg(unix)]
+fn retry_with_parent_writable(
+    path: &Path,
+    op: impl Fn(&Path) -> std::io::Result<()>,
+) -> Option<std::io::Result<()>> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    let parent = path.parent()?;
+    let meta = std::fs::symlink_metadata(parent).ok()?;
+    // SAFETY: geteuid is always safe and never fails.
+    let euid = unsafe { libc::geteuid() };
+    let mode = meta.mode() & 0o7777;
+    if !meta.is_dir() || meta.uid() != euid || mode & 0o200 != 0 {
+        return None;
+    }
+    std::fs::set_permissions(parent, std::fs::Permissions::from_mode(mode | 0o200)).ok()?;
+    let result = op(path);
+    let _ = std::fs::set_permissions(parent, std::fs::Permissions::from_mode(mode));
+    Some(result)
+}
+
+#[cfg(not(unix))]
+fn retry_with_parent_writable(
+    _path: &Path,
+    _op: impl Fn(&Path) -> std::io::Result<()>,
+) -> Option<std::io::Result<()>> {
+    None
+}
+
+/// Remove a single file, retrying once after clearing a user immutable flag (`EPERM`) or with the
+/// parent's owner write bit restored (`EACCES`).
 pub fn remove_file_robust(path: &Path) -> std::io::Result<()> {
     match std::fs::remove_file(path) {
         Ok(()) => Ok(()),
@@ -375,12 +465,19 @@ pub fn remove_file_robust(path: &Path) -> std::io::Result<()> {
                     return std::fs::remove_file(path);
                 }
             }
+            if e.kind() == std::io::ErrorKind::PermissionDenied {
+                if let Some(result) = retry_with_parent_writable(path, |p| std::fs::remove_file(p))
+                {
+                    return result;
+                }
+            }
             Err(e)
         }
     }
 }
 
-/// Remove an (empty) directory, clearing a user immutable flag and retrying once on `EPERM`.
+/// Remove an (empty) directory, retrying once after clearing a user immutable flag (`EPERM`) or
+/// with the parent's owner write bit restored (`EACCES`).
 pub fn remove_dir_robust(path: &Path) -> std::io::Result<()> {
     match std::fs::remove_dir(path) {
         Ok(()) => Ok(()),
@@ -389,6 +486,11 @@ pub fn remove_dir_robust(path: &Path) -> std::io::Result<()> {
             {
                 if e.raw_os_error() == Some(libc::EPERM) && try_clear_user_immutable(path) {
                     return std::fs::remove_dir(path);
+                }
+            }
+            if e.kind() == std::io::ErrorKind::PermissionDenied {
+                if let Some(result) = retry_with_parent_writable(path, |p| std::fs::remove_dir(p)) {
+                    return result;
                 }
             }
             Err(e)
@@ -467,6 +569,54 @@ pub fn classify_delete_failure(path: &Path, err: Option<&std::io::Error>) -> Del
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    #[cfg(unix)]
+    #[test]
+    fn find_tool_skips_non_executable_and_searches_in_order() {
+        use std::os::unix::fs::PermissionsExt;
+        let temp = TempDir::new().unwrap();
+        let (first, second) = (temp.path().join("a"), temp.path().join("b"));
+        for (dir, mode) in [(&first, 0o644), (&second, 0o755)] {
+            std::fs::create_dir_all(dir).unwrap();
+            let tool = dir.join("tool");
+            std::fs::write(&tool, b"#!/bin/sh\n").unwrap();
+            std::fs::set_permissions(&tool, std::fs::Permissions::from_mode(mode)).unwrap();
+        }
+        let dirs = vec![first, second.clone()];
+
+        assert_eq!(find_tool_in(&dirs, "tool"), Some(second.join("tool")));
+        assert_eq!(find_tool_in(&dirs, "missing"), None);
+    }
+
+    #[test]
+    fn tool_search_dirs_include_cargo_bin() {
+        // A Finder-launched GUI has no ~/.cargo/bin on PATH; it must still be searched.
+        let cargo_bin = dirs::home_dir().unwrap().join(".cargo/bin");
+        assert!(tool_search_dirs().contains(&cargo_bin));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn robust_removes_work_inside_read_only_dirs() {
+        use std::os::unix::fs::PermissionsExt;
+        let temp = TempDir::new().unwrap();
+        // Go module cache shape: read-only module dir holding a read-only bin dir.
+        let module = temp.path().join("mod@v1.0.0");
+        let bin = module.join("bin");
+        std::fs::create_dir_all(&bin).unwrap();
+        let file = bin.join("tool");
+        std::fs::write(&file, b"x").unwrap();
+        for d in [&bin, &module] {
+            std::fs::set_permissions(d, std::fs::Permissions::from_mode(0o555)).unwrap();
+        }
+
+        remove_file_robust(&file).expect("file in a 0555 dir should be removed");
+        remove_dir_robust(&bin).expect("empty dir in a 0555 dir should be removed");
+        assert!(!bin.exists());
+        // The parent keeps its read-only mode: the write bit is put back after the retry.
+        let mode = std::fs::metadata(&module).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o555);
+    }
 
     #[test]
     fn disk_space_returns_something_for_temp() {
